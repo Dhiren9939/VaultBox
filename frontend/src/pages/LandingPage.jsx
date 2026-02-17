@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import {
   Shield,
   Users,
@@ -16,12 +17,18 @@ const LandingPage = () => {
       <nav className="container mx-auto px-6 py-6 flex justify-between items-center">
         <div className="text-2xl font-bold tracking-tighter">VaultBox</div>
         <div className="space-x-4">
-          <button className="px-4 py-2 hover:text-gray-300 transition-colors cursor-pointer">
+          <Link
+            to="/login"
+            className="px-4 py-2 hover:text-gray-300 transition-colors cursor-pointer"
+          >
             Log In
-          </button>
-          <button className="px-4 py-2 bg-white text-black font-semibold rounded hover:bg-gray-200 transition-colors cursor-pointer">
+          </Link>
+          <Link
+            to="/signup"
+            className="px-4 py-2 bg-white text-black font-semibold rounded hover:bg-gray-200 transition-colors cursor-pointer inline-block text-center"
+          >
             Get Started
-          </button>
+          </Link>
         </div>
       </nav>
 
@@ -37,10 +44,13 @@ const LandingPage = () => {
             with people you trust.
           </p>
           <div className="flex gap-4 pt-4">
-            <button className="px-8 py-4 bg-white text-black text-lg font-semibold rounded hover:bg-gray-200 transition-all flex items-center gap-2 cursor-pointer group">
+            <Link
+              to="/signup"
+              className="px-8 py-4 bg-white text-black text-lg font-semibold rounded hover:bg-gray-200 transition-all flex items-center gap-2 cursor-pointer group"
+            >
               Start Securely{" "}
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
           </div>
         </div>
       </header>
