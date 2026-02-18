@@ -36,7 +36,6 @@ const SignUpPage = () => {
     confirmPassword: "",
   });
 
-  // All known client-side error messages — anything NOT in this set is a backend error
   const clientErrors = new Set([
     ...Object.values(emptyErrors),
     'Password must reach "Strong" strength to proceed.',
