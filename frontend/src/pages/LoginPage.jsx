@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const LoginPage = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -98,22 +100,17 @@ const LoginPage = () => {
 
     setIsLoading(true);
 
-    // TODO: Replace with actual API call
-    // try {
-    //   const response = await fetch("/api/auth/login", {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify(formData),
-    //   });
-    //   const data = await response.json();
-    //   if (!response.ok) {
-    //     setErrors(prev => ({ ...prev, general: data.message || "Invalid credentials." }));
-    //   }
-    // } catch (err) {
-    //   setErrors(prev => ({ ...prev, general: "Something went wrong. Please try again." }));
-    // } finally {
-    //   setIsLoading(false);
-    // }
+    try {
+      console.log(formData);
+      const res = await axios.post("/api/auth/login", formData);
+      navigate("/");
+    } catch (error) {
+      console.log(error);
+      // const { data } = error.response;
+      // if (data.error) {
+      // setErrors((prev) => ({ ...prev, serverError: data.error }));
+      // }
+    }
 
     setIsLoading(false);
   };
@@ -247,7 +244,11 @@ const LoginPage = () => {
                 </>
               )}
             </button>
-
+            {errors.serverError && (
+              <p className="text-md text-center text-red-400 mt-1">
+                {errors.serverError}
+              </p>
+            )}
             <p className="text-sm text-center text-gray-500">
               Don&apos;t have an account?{" "}
               <Link

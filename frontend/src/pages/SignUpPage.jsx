@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { User, Mail, ArrowRight, Lock } from "lucide-react";
-import { Link } from "react-router-dom";
+import { User, Mail, ArrowRight, Lock, Loader2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import zxcvbn from "zxcvbn";
+import axios from "axios";
 
 const SignUpPage = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -34,7 +36,10 @@ const SignUpPage = () => {
     email: "",
     password: "",
     confirmPassword: "",
+    serverError: "",
   });
+
+  const [isLoading, setIsLoading] = useState(false);
 
   const clientErrors = new Set([
     ...Object.values(emptyErrors),
@@ -175,7 +180,7 @@ const SignUpPage = () => {
 
   const score = formData.password ? passwordStrength(formData.password) : 0;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Mark all fields as touched
@@ -185,14 +190,24 @@ const SignUpPage = () => {
     );
     setTouched(allTouched);
 
-    const hasError = validateFormData();
+    const hasError = validateFormData(formData, allTouched);
     if (hasError) {
       return;
     }
 
-    // All fields valid — proceed with API call
-    // On backend error response:
-    //   setErrors(prev => ({ ...prev, ...backendErrors }));
+    setIsLoading(true);
+
+    try {
+      const res = await axios.post("/api/auth/register", formData);
+      navigate("/login");
+    } catch (error) {
+      const { data } = error.response;
+      if (data.error) {
+        setErrors((prev) => ({ ...prev, serverError: data.error }));
+      }
+    }
+
+    setIsLoading(false);
   };
 
   // Input class helper — adds red border when there's an error
@@ -416,11 +431,26 @@ const SignUpPage = () => {
             {/* Submit */}
             <button
               type="submit"
+              disabled={isLoading}
               className="w-full py-3 px-4 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
-              Create Account
-              <ArrowRight className="h-5 w-5" />
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Create Account
+                  <ArrowRight className="h-5 w-5" />
+                </>
+              )}
             </button>
+            {errors.serverError && (
+              <p className="text-md text-center text-red-400 mt-1">
+                {errors.serverError}
+              </p>
+            )}
 
             <p className="text-xs text-center text-gray-500 max-w-xs mx-auto">
               By clicking &quot;Create Account&quot;, you agree to our Terms of
