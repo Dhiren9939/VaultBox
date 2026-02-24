@@ -105,11 +105,13 @@ const LoginPage = () => {
       const res = await axios.post("/api/auth/login", formData);
       navigate("/");
     } catch (error) {
-      console.log(error);
-      // const { data } = error.response;
-      // if (data.error) {
-      // setErrors((prev) => ({ ...prev, serverError: data.error }));
-      // }
+      const { data } = error.response;
+      if (!data) {
+        setErrors((prev) => ({ ...prev, serverError: "Something went wrong" }));
+      }
+      if (data.error) {
+        setErrors((prev) => ({ ...prev, serverError: data.error }));
+      }
     }
 
     setIsLoading(false);

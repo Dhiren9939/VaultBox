@@ -202,6 +202,10 @@ const SignUpPage = () => {
       navigate("/login");
     } catch (error) {
       const { data } = error.response;
+      if (!data) {
+        setErrors((prev) => ({ ...prev, serverError: "Something went wrong" }));
+      }
+
       if (data.error) {
         setErrors((prev) => ({ ...prev, serverError: data.error }));
       }
