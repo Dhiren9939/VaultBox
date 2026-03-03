@@ -32,6 +32,7 @@ export async function encryptDEK(KEK, DEK) {
     {
       name: "AES-GCM",
       iv,
+      
     },
     cryptoKey,
     dekBuffer,
