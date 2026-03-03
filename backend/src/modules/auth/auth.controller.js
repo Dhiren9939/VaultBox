@@ -4,7 +4,7 @@ import UserExistsError from '#src/errors/userExistsError.js';
 import InvalidCredentialsError from '#src/errors/invalidCredentialsError.js';
 
 async function handleRegister(req, res) {
-  const { firstName, lastName, email, password, eDEK } = req.body;
+  const { firstName, lastName, email, password, eDEK, iv, salt } = req.body;
 
   try {
     const { userId, token } = await registerUser(
@@ -12,7 +12,9 @@ async function handleRegister(req, res) {
       lastName,
       email,
       password,
-      eDEK
+      eDEK,
+      iv,
+      salt
     );
 
     return SuccessResponse(

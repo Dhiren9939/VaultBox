@@ -1,8 +1,9 @@
-import User from '#src/models/user.js';
+import User from '#src/modules/user/user.model.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import UserExistsError from '#src/errors/userExistsError.js';
 import InvalidCredentialsError from '#src/errors/invalidCredentialsError.js';
+import { createVault } from '#src/modules/vault/vault.service.js';
 
 function generateToken(id, email, firstName, lastName) {
   const payload = {
@@ -23,8 +24,8 @@ async function registerUser(
   email,
   password,
   eDEK,
-  salt,
-  iv
+  iv,
+  salt
 ) {
   const hashedPassword = await bcrypt.hash(password, 12);
 
@@ -33,11 +34,14 @@ async function registerUser(
     throw new UserExistsError('User with same email already exists.');
 
   try {
+    const vault = await createVault(eDEK, salt, iv);
+
     const user = await User.create({
       firstName,
       lastName,
       email,
       hashedPassword,
+      vaultId: vault.id,
     });
 
     const token = generateToken(user.id, email, firstName, lastName);

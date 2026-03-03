@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import {
-  createVaultEntry,
-  getVaultKey,
-  getVaultEntries,
+  handleCreateEntry,
+  handleGetKey,
+  handleGetEntries,
 } from './vault.controller.js';
 import asyncHandler from '#src/utils/asyncHandler.js';
 import authenticateUser from '#src/middleware/authenticateUser.js';
@@ -10,21 +10,17 @@ import authenticateUser from '#src/middleware/authenticateUser.js';
 const router = Router();
 
 router.post(
-  '/api/user/:id/vault/entry',
+  '/api/vault/entry',
   authenticateUser,
-  asyncHandler(createVaultEntry)
+  asyncHandler(handleCreateEntry)
 );
 
 router.get(
-  '/api/user/:id/vault/entry',
+  '/api/vault/entry',
   authenticateUser,
-  asyncHandler(getVaultEntries)
+  asyncHandler(handleGetEntries)
 );
 
-router.get(
-  '/api/user/:id/vault/key',
-  authenticateUser,
-  asyncHandler(getVaultKey)
-);
+router.get('/api/vault/key', authenticateUser, asyncHandler(handleGetKey));
 
 export default router;
