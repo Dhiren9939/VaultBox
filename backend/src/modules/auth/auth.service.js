@@ -1,38 +1,66 @@
 import User from '#src/models/user.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import UserExistsError from '#src/errors/userExistsError.js';
+import InvalidCredentialsError from '#src/errors/invalidCredentialsError.js';
 
-export async function createUser(firstName, lastName, email, password, eDEK) {
-  const existingUser = await User.findOne({ email });
-
-  if (existingUser) {
-    throw new Error('User with this email already existed.');
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = new User({
+function generateToken(id, email, firstName, lastName) {
+  const payload = {
+    id,
+    email,
     firstName,
     lastName,
-    email,
-    hashedPassword,
-    eDEK,
-  });
+  };
 
-  await user.save();
+  return jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN,
+  });
 }
 
-export async function createLoginToken(email, password) {
+async function registerUser(
+  firstName,
+  lastName,
+  email,
+  password,
+  eDEK,
+  salt,
+  iv
+) {
+  const hashedPassword = await bcrypt.hash(password, 12);
+
+  const existingUser = await User.findOne({ email });
+  if (existingUser)
+    throw new UserExistsError('User with same email already exists.');
+
+  try {
+    const user = await User.create({
+      firstName,
+      lastName,
+      email,
+      hashedPassword,
+    });
+
+    const token = generateToken(user.id, email, firstName, lastName);
+
+    return { userId: user.id, token };
+  } catch (error) {
+    if (error.code === 'E11000')
+      throw new UserExistsError('User with same email already exists.');
+    throw error;
+  }
+}
+
+async function loginUser(email, password) {
   const user = await User.findOne({ email });
-  if (!user) throw new Error('Invalid credentials.');
+  if (!user) throw new InvalidCredentialsError('Invalid email or password.');
 
   const isPasswordValid = await bcrypt.compare(password, user.hashedPassword);
-  if (!isPasswordValid) throw new Error('Invalid credentials.');
+  if (!isPasswordValid)
+    throw new InvalidCredentialsError('Invalid email or password.');
 
-  const token = jwt.sign(
-    { firstName: user.firstName, lastName: user.lastName, email },
-    process.env.JWT_SECRET,
-    { expiresIn: '24h' }
-  );
+  const token = generateToken(user.id, email, user.firstName, user.lastName);
 
-  return token;
+  return { userId: user.id, token };
 }
+
+export { loginUser, registerUser };

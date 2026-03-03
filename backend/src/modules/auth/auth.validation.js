@@ -30,13 +30,6 @@ export const validateRegisterBody = [
     .withMessage('Password is required.')
     .custom(isStrong)
     .withMessage('Password must be Strong.'),
-  body('confirmPassword')
-    .trim()
-    .notEmpty()
-    .withMessage('Confirm password is required.'),
-  body('confirmPassword')
-    .custom(passwordsMatch)
-    .withMessage('Passwords must match.'),
 ];
 
 export const validateLoginBody = [

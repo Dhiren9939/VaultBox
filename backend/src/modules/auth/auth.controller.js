@@ -1,24 +1,52 @@
-import { createLoginToken, createUser } from './auth.service.js';
+import { registerUser, loginUser } from './auth.service.js';
+import { SuccessResponse, ErrorResponse } from '#src/utils/response.js';
+import UserExistsError from '#src/errors/userExistsError.js';
+import InvalidCredentialsError from '#src/errors/invalidCredentialsError.js';
 
-export async function handleRegister(req, res) {
+async function handleRegister(req, res) {
   const { firstName, lastName, email, password, eDEK } = req.body;
 
-  createUser(firstName, lastName, email, password, eDEK);
+  try {
+    const { userId, token } = await registerUser(
+      firstName,
+      lastName,
+      email,
+      password,
+      eDEK
+    );
 
-  res.statusSend(201);
+    return SuccessResponse(
+      res,
+      { userId, token },
+      'User registered successfully.',
+      201
+    );
+  } catch (error) {
+    if (error instanceof UserExistsError)
+      return ErrorResponse(res, {}, error.message, 409);
+
+    throw error;
+  }
 }
 
-export async function handleLogin(req, res) {
+async function handleLogin(req, res) {
   const { email, password } = req.body;
 
-  const token = await createLoginToken(email, password);
+  try {
+    const { userId, token } = await loginUser(email, password);
 
-  res.cookie('token', token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'strict',
-    maxAge: 24 * 60 * 60 * 1000,
-  });
+    return SuccessResponse(
+      res,
+      { userId, token },
+      'User logged in successfully.',
+      200
+    );
+  } catch (err) {
+    if (err instanceof InvalidCredentialsError)
+      return ErrorResponse(res, {}, err.message, 401);
 
-  res.statusSend(200);
+    throw err;
+  }
 }
+
+export { handleRegister, handleLogin };
