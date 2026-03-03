@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const vaultSchema = new mongoose.Schema({
   eDEK: { type: Buffer, required: true },
@@ -7,6 +7,6 @@ const vaultSchema = new mongoose.Schema({
   encryptedData: { type: Buffer, required: true },
 });
 
-const Vault = mongoose.model("Vault", vaultSchema);
+const Vault = mongoose.model('Vault', vaultSchema);
 
 export default Vault;

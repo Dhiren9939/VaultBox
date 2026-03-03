@@ -1,21 +1,14 @@
-import express from "express";
-import cors from "cors";
-import mongoose from "mongoose";
-import cookieParser from "cookie-parser";
-import authRoutes from "./routes/auth.routes.js";
+import env from '#src/config/env.js';
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import authRoutes from '#src/modules/auth/auth.routes.js';
+import notFound from '#src/middleware/notFoundHandler.js';
+import centralErrorHandler from '#src/middleware/centralErrorHandler.js';
+import logger from '#src/utils/logger.js';
+import mongo from '#src/config/mongo.js';
 
-const PORT = process.env.PORT;
-const MONGODB_URI = process.env.MONGODB_URI;
-
-mongoose
-    .connect(MONGODB_URI)
-    .then(() => {
-        console.log("Connected to MongoDB");
-    })
-    .catch((error) => {
-        console.error("Error connecting to MongoDB:", error);
-        process.exit(1);
-    });
+const PORT = env.PORT;
 
 const app = express();
 app.use(cors());
@@ -24,10 +17,10 @@ app.use(cookieParser());
 
 app.use(authRoutes);
 
-app.use((req, res, next) => {
-    res.sendStatus(404);
-});
+app.use(notFound);
+app.use(centralErrorHandler);
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  logger.info(`Server is running on port ${PORT}`);
 });
+

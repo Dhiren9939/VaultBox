@@ -1,4 +1,4 @@
-import { createLoginToken, createUser } from "../services/auth.js";
+import { createLoginToken, createUser } from './auth.service.js';
 
 export async function handleRegister(req, res) {
   const { firstName, lastName, email, password, eDEK } = req.body;
@@ -11,12 +11,12 @@ export async function handleRegister(req, res) {
 export async function handleLogin(req, res) {
   const { email, password } = req.body;
 
-  let token = await createLoginToken(email, password);
+  const token = await createLoginToken(email, password);
 
-  res.cookie("token", token, {
+  res.cookie('token', token, {
     httpOnly: true,
     secure: true,
-    sameSite: "strict",
+    sameSite: 'strict',
     maxAge: 24 * 60 * 60 * 1000,
   });
 
