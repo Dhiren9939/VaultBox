@@ -13,8 +13,8 @@ const PORT = env.PORT;
 
 const app = express();
 app.use(cors());
+app.use(cookieParser(env.COOKIE_SECRET));
 app.use(express.json());
-app.use(cookieParser());
 
 app.use(authRoutes);
 app.use(vaultRoutes);

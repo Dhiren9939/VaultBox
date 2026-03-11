@@ -5,7 +5,7 @@ import env from '#src/config/env.js';
 
 function authenticateUser(req, res, next) {
   try {
-    const token = req.cookies.token;
+    const token = req.signedCookies.token;
     if (!token)
       return ErrorResponse(
         res,
@@ -14,18 +14,21 @@ function authenticateUser(req, res, next) {
         401
       );
 
-    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    const decodedToken = jwt.verify(token, env.JWT_SECRET);
+    logger.debug(decodedToken);
     req.user = decodedToken;
 
     next();
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError)
+    if (error instanceof jwt.JsonWebTokenError) {
+      logger.warn(error);
       return ErrorResponse(
         res,
         {},
         'Invalid authentication token. Try logging in.',
         401
       );
+    }
 
     if (env.NODE_ENV !== 'production') logger.error(error.stack || error);
     else logger.error(error.message);

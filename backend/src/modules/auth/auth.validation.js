@@ -9,12 +9,6 @@ const isStrong = (value, { req }) => {
   return true;
 };
 
-const passwordsMatch = (value, { req }) => {
-  const { password } = req.body;
-  if (password !== value) return false;
-  return true;
-};
-
 export const validateRegisterBody = [
   body('firstName').trim().notEmpty().withMessage('First name is required.'),
   body('lastName').trim().notEmpty().withMessage('Last name is required.'),
@@ -23,7 +17,8 @@ export const validateRegisterBody = [
     .notEmpty()
     .withMessage('Email is required.')
     .isEmail()
-    .withMessage('Invalid email format.'),
+    .withMessage('Invalid email format.')
+    .normalizeEmail(),
   body('password')
     .trim()
     .notEmpty()
@@ -62,6 +57,7 @@ export const validateLoginBody = [
     .notEmpty()
     .withMessage('Email is required.')
     .isEmail()
-    .withMessage('Invalid email format.'),
+    .withMessage('Invalid email format.')
+    .normalizeEmail(),
   body('password').trim().notEmpty().withMessage('Password is required.'),
 ];

@@ -5,28 +5,27 @@ import {
   handleGetEntries,
 } from '#src/modules/vault/vault.controller.js';
 import {
-  validateCreateEntryBody,
+  validateEntryBody,
   validateGetEntriesQuery,
-  validateGetKeyParams,
 } from '#src/modules/vault/vault.validation.js';
 import asyncHandler from '#src/utils/asyncHandler.js';
-import authenticateUser from '#src/middleware/authenticateUser.js';
+import { authenticateUser } from '#src/modules/auth/auth.middleware.js';
 import handleValidationErrors from '#src/middleware/handleValidationErrors.js';
 
 const router = express.Router();
 
 router.post(
-  '/api/vault/entry',
+  '/api/vaults/entries',
   [
     authenticateUser,
-    validateCreateEntryBody,
+    validateEntryBody,
     handleValidationErrors('Invalid Vault Entry Request'),
   ],
   asyncHandler(handleCreateEntry)
 );
 
 router.get(
-  '/api/vault/entry',
+  '/api/vaults/entries',
   [
     authenticateUser,
     validateGetEntriesQuery,
@@ -35,14 +34,6 @@ router.get(
   asyncHandler(handleGetEntries)
 );
 
-router.get(
-  '/api/vault/:id/key',
-  [
-    authenticateUser,
-    validateGetKeyParams,
-    handleValidationErrors('Invalid Vault Key Request'),
-  ],
-  asyncHandler(handleGetKey)
-);
+router.get('/api/vaults/key', authenticateUser, asyncHandler(handleGetKey));
 
 export default router;

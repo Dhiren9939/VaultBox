@@ -4,18 +4,25 @@ import jwt from 'jsonwebtoken';
 import UserExistsError from '#src/errors/userExistsError.js';
 import InvalidCredentialsError from '#src/errors/invalidCredentialsError.js';
 import { createVault } from '#src/modules/vault/vault.service.js';
+import env from '#src/config/env.js';
+import logger from '#src/utils/logger.js';
+import { Vault } from '#src/modules/vault/vault.model.js';
 
-function generateToken(id, email, firstName, lastName) {
+function generateToken(id, email, firstName, lastName, vaultId) {
   const payload = {
     id,
+    vaultId,
     email,
     firstName,
     lastName,
   };
 
-  return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN,
+  logger.debug(payload);
+  const token = jwt.sign(payload, env.JWT_SECRET, {
+    expiresIn: env.JWT_EXPIRES_IN_SEC,
   });
+  logger.debug(jwt.verify(token, env.JWT_SECRET));
+  return token;
 }
 
 async function registerUser(
@@ -27,24 +34,22 @@ async function registerUser(
   iv,
   salt
 ) {
-  const hashedPassword = await bcrypt.hash(password, 12);
-
   const existingUser = await User.findOne({ email });
   if (existingUser)
     throw new UserExistsError('User with same email already exists.');
 
   try {
-    const vault = await createVault(eDEK, salt, iv);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const user = await User.create({
       firstName,
       lastName,
       email,
       hashedPassword,
-      vaultId: vault.id,
     });
 
-    const token = generateToken(user.id, email, firstName, lastName);
+    const vault = await createVault(user.id, eDEK, salt, iv);
+    const token = generateToken(user.id, email, firstName, lastName, vault.id);
 
     return { userId: user.id, token };
   } catch (error) {
@@ -62,7 +67,14 @@ async function loginUser(email, password) {
   if (!isPasswordValid)
     throw new InvalidCredentialsError('Invalid email or password.');
 
-  const token = generateToken(user.id, email, user.firstName, user.lastName);
+  const vault = await Vault.findOne({ userId: user.id });
+  const token = generateToken(
+    user.id,
+    email,
+    user.firstName,
+    user.lastName,
+    vault.id
+  );
 
   return { userId: user.id, token };
 }

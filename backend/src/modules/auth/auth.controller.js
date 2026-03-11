@@ -2,6 +2,8 @@ import { registerUser, loginUser } from './auth.service.js';
 import { SuccessResponse, ErrorResponse } from '#src/utils/response.js';
 import UserExistsError from '#src/errors/userExistsError.js';
 import InvalidCredentialsError from '#src/errors/invalidCredentialsError.js';
+import { setCookie } from '#src/utils/cookie.js';
+import env from '#src/config/env.js';
 
 async function handleRegister(req, res) {
   const { firstName, lastName, email, password, eDEK, iv, salt } = req.body;
@@ -17,9 +19,11 @@ async function handleRegister(req, res) {
       salt
     );
 
+    setCookie(res, 'token', token, env.JWT_EXPIRES_IN_SEC * 1000);
+
     return SuccessResponse(
       res,
-      { userId, token },
+      { userId },
       'User registered successfully.',
       201
     );
@@ -37,9 +41,10 @@ async function handleLogin(req, res) {
   try {
     const { userId, token } = await loginUser(email, password);
 
+    setCookie(res, 'token', token, env.JWT_EXPIRES_IN_SEC * 1000);
     return SuccessResponse(
       res,
-      { userId, token },
+      { userId },
       'User logged in successfully.',
       200
     );

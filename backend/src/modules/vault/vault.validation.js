@@ -1,6 +1,6 @@
 import { body, param, query } from 'express-validator';
 
-export const validateCreateEntryBody = [
+export const validateEntryBody = [
   body('cipherText')
     .trim()
     .notEmpty()
@@ -18,20 +18,8 @@ export const validateCreateEntryBody = [
 ];
 
 export const validateGetEntriesQuery = [
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('page must be an integer >= 1.'),
+  query('page').isInt({ min: 1 }).withMessage('page must be an integer >= 1.'),
   query('limit')
-    .optional()
     .isInt({ min: 1, max: 20 })
     .withMessage('limit must be an integer between 1 and 20.'),
-];
-
-export const validateGetKeyParams = [
-  param('id')
-    .notEmpty()
-    .withMessage('id is required.')
-    .isMongoId()
-    .withMessage('id must be a valid Mongo id.'),
 ];
