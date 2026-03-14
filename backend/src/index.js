@@ -1,3 +1,4 @@
+// API server entrypoint.
 import env from '#src/config/env.js';
 import mongo from '#src/config/mongo.js';
 import express from 'express';
@@ -12,7 +13,12 @@ import logger from '#src/utils/logger.js';
 const PORT = env.PORT;
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: 'http://localhost:5173',
+    credentials: true,
+  })
+);
 app.use(cookieParser(env.COOKIE_SECRET));
 app.use(express.json());
 

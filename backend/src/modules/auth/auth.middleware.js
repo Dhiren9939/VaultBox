@@ -3,9 +3,17 @@ import { ErrorResponse } from '#src/utils/response.js';
 import logger from '#src/utils/logger.js';
 import env from '#src/config/env.js';
 
+/**
+ * Validates the Authorization header and attaches the decoded user to req.user.
+ */
 function authenticateUser(req, res, next) {
   try {
-    const token = req.signedCookies.token;
+    const authHeader = req.headers.authorization;
+    const token =
+      authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.slice(7)
+        : null;
+
     if (!token)
       return ErrorResponse(
         res,
@@ -15,7 +23,6 @@ function authenticateUser(req, res, next) {
       );
 
     const decodedToken = jwt.verify(token, env.JWT_SECRET);
-    logger.debug(decodedToken);
     req.user = decodedToken;
 
     next();

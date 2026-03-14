@@ -1,7 +1,116 @@
-async function registerUser(formData) {}
+import axios from 'axios';
 
-async function loginUser(formData) {}
+const api = axios.create({
+  withCredentials: true,
+  baseURL: 'http://localhost:3000',
+});
 
-async function getVaultKey() {}
-async function getEntries() {}
-async function postEntires() {}
+let getAccessToken = () => '';
+let handleAccessTokenUpdate = null;
+
+function setAccessTokenProvider(fn) {
+  getAccessToken = typeof fn === 'function' ? fn : () => '';
+}
+
+function setAccessTokenUpdater(fn) {
+  handleAccessTokenUpdate = typeof fn === 'function' ? fn : null;
+}
+
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (
+      error?.response?.status === 401 &&
+      !originalRequest?._retry &&
+      !originalRequest?.url?.includes('/api/auth/refresh')
+    ) {
+      originalRequest._retry = true;
+      try {
+        const refreshResponse = await api.get('/api/auth/refresh');
+        const newAccessToken =
+          refreshResponse?.data?.details?.accessToken || '';
+
+        if (newAccessToken) {
+          if (handleAccessTokenUpdate) {
+            handleAccessTokenUpdate(newAccessToken);
+          }
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        if (handleAccessTokenUpdate) {
+          handleAccessTokenUpdate('');
+        }
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+async function registerUser(body) {
+  const response = await api.post('/api/auth/register', body);
+  return response.data.details;
+}
+
+async function loginUser(email, password) {
+  const response = await api.post('/api/auth/login', { email, password });
+  return response.data.details;
+}
+
+async function logoutUser() {
+  const response = await api.post('/api/auth/logout');
+  return response.data.details;
+}
+async function getVaultKey() {
+  const response = await api.get('/api/vaults/key');
+  return response.data.details;
+}
+
+async function getEntries(page = 1, limit = 10) {
+  const response = await api.get('/api/vaults/entries', {
+    params: { page, limit },
+  });
+  return response.data.details;
+}
+
+async function postEntries(cipherText, iv) {
+  const response = await api.post('/api/vaults/entries', { cipherText, iv });
+  return response.data.details;
+}
+
+async function putEntry(entryId, cipherText, iv) {
+  const response = await api.put(`/api/vaults/entries/${entryId}`, {
+    cipherText,
+    iv,
+  });
+  return response.data.details;
+}
+
+async function deleteEntry(entryId) {
+  const response = await api.delete(`/api/vaults/entries/${entryId}`);
+  return response.data.details;
+}
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  getVaultKey,
+  getEntries,
+  postEntries,
+  putEntry,
+  deleteEntry,
+  setAccessTokenProvider,
+  setAccessTokenUpdater,
+};

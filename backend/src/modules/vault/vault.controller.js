@@ -1,6 +1,13 @@
+// Vault route handlers for encrypted entries and vault keys.
 import { ErrorResponse } from '#src/utils/response.js';
 import { SuccessResponse } from '#src/utils/response.js';
-import { createEntry, getEntries, getVaultKey } from './vault.service.js';
+import {
+  createEntry,
+  deleteEntry,
+  getEntries,
+  getVaultKey,
+  updateEntry,
+} from './vault.service.js';
 import VaultNotFoundError from '#src/errors/VaultNotFoundError.js';
 
 async function handleCreateEntry(req, res) {
@@ -8,9 +15,9 @@ async function handleCreateEntry(req, res) {
     const { cipherText, iv } = req.body;
     const vaultId = req.user.vaultId;
 
-    await createEntry(vaultId, cipherText, iv);
+    const entry = await createEntry(vaultId, cipherText, iv);
 
-    return SuccessResponse(res, {}, 'Entry Created Successfully', 201);
+    return SuccessResponse(res, { entry }, 'Entry Created Successfully', 201);
   } catch (error) {
     if (error instanceof VaultNotFoundError)
       return ErrorResponse(res, {}, error.message, 404);
@@ -50,4 +57,41 @@ async function handleGetEntries(req, res) {
   }
 }
 
-export { handleCreateEntry, handleGetKey, handleGetEntries };
+async function handleUpdateEntry(req, res) {
+  try {
+    const { cipherText, iv } = req.body;
+    const { entryId } = req.params;
+    const vaultId = req.user.vaultId;
+
+    const entry = await updateEntry(vaultId, entryId, cipherText, iv);
+
+    return SuccessResponse(res, { entry }, 'Entry Updated Successfully', 200);
+  } catch (error) {
+    if (error instanceof VaultNotFoundError)
+      return ErrorResponse(res, {}, error.message, 404);
+    throw error;
+  }
+}
+
+async function handleDeleteEntry(req, res) {
+  try {
+    const { entryId } = req.params;
+    const vaultId = req.user.vaultId;
+
+    await deleteEntry(vaultId, entryId);
+
+    return SuccessResponse(res, {}, 'Entry Deleted Successfully', 200);
+  } catch (error) {
+    if (error instanceof VaultNotFoundError)
+      return ErrorResponse(res, {}, error.message, 404);
+    throw error;
+  }
+}
+
+export {
+  handleCreateEntry,
+  handleGetKey,
+  handleGetEntries,
+  handleUpdateEntry,
+  handleDeleteEntry,
+};

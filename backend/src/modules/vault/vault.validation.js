@@ -23,3 +23,11 @@ export const validateGetEntriesQuery = [
     .isInt({ min: 1, max: 20 })
     .withMessage('limit must be an integer between 1 and 20.'),
 ];
+
+export const validateEntryIdParam = [
+  param('entryId')
+    .notEmpty()
+    .withMessage('entryId is required.')
+    .isMongoId()
+    .withMessage('entryId must be a valid Mongo id.'),
+];

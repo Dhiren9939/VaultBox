@@ -3,10 +3,13 @@ import {
   handleCreateEntry,
   handleGetKey,
   handleGetEntries,
+  handleUpdateEntry,
+  handleDeleteEntry,
 } from '#src/modules/vault/vault.controller.js';
 import {
   validateEntryBody,
   validateGetEntriesQuery,
+  validateEntryIdParam,
 } from '#src/modules/vault/vault.validation.js';
 import asyncHandler from '#src/utils/asyncHandler.js';
 import { authenticateUser } from '#src/modules/auth/auth.middleware.js';
@@ -35,5 +38,26 @@ router.get(
 );
 
 router.get('/api/vaults/key', authenticateUser, asyncHandler(handleGetKey));
+
+router.put(
+  '/api/vaults/entries/:entryId',
+  [
+    authenticateUser,
+    validateEntryIdParam,
+    validateEntryBody,
+    handleValidationErrors('Invalid Vault Entry Update Request'),
+  ],
+  asyncHandler(handleUpdateEntry)
+);
+
+router.delete(
+  '/api/vaults/entries/:entryId',
+  [
+    authenticateUser,
+    validateEntryIdParam,
+    handleValidationErrors('Invalid Vault Entry Delete Request'),
+  ],
+  asyncHandler(handleDeleteEntry)
+);
 
 export default router;

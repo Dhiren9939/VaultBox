@@ -1,17 +1,25 @@
-import React, { useState } from "react";
-import { User, Mail, ArrowRight, Lock, Loader2 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import zxcvbn from "zxcvbn";
-import axios from "axios";
+import React, { useMemo, useState } from 'react';
+import { User, Mail, ArrowRight, Lock, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import zxcvbn from 'zxcvbn';
+import { getVaultKey, registerUser } from '../service/api';
+import {
+  base64ToBuffer,
+  createVaultKey,
+  decryptDEK,
+  generateKEK,
+} from '../service/cryptoService';
+import { useAuth } from '../context/AuthProvider.jsx';
 
 const SignUpPage = () => {
   const navigate = useNavigate();
+  const { setAccessToken, setUser, setKEK, setDEK } = useAuth();
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
   });
 
   const [touched, setTouched] = useState({
@@ -23,20 +31,20 @@ const SignUpPage = () => {
   });
 
   const emptyErrors = {
-    firstName: "First Name cannot be empty.",
-    lastName: "Last Name cannot be empty.",
-    email: "Email cannot be empty.",
-    password: "Password cannot be empty.",
-    confirmPassword: "Confirm Password cannot be empty.",
+    firstName: 'First Name cannot be empty.',
+    lastName: 'Last Name cannot be empty.',
+    email: 'Email cannot be empty.',
+    password: 'Password cannot be empty.',
+    confirmPassword: 'Confirm Password cannot be empty.',
   };
 
   const [errors, setErrors] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    serverError: "",
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    serverError: '',
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -44,7 +52,7 @@ const SignUpPage = () => {
   const clientErrors = new Set([
     ...Object.values(emptyErrors),
     'Password must reach "Strong" strength to proceed.',
-    "Passwords do not match.",
+    'Passwords do not match.',
   ]);
 
   const validateFormData = (data = formData, touchedFields = touched) => {
@@ -53,7 +61,7 @@ const SignUpPage = () => {
 
     const clearIfClientError = (field) => {
       if (clientErrors.has(newErrors[field])) {
-        newErrors[field] = "";
+        newErrors[field] = '';
       }
     };
 
@@ -62,7 +70,7 @@ const SignUpPage = () => {
         newErrors.firstName = emptyErrors.firstName;
         hasError = true;
       } else {
-        clearIfClientError("firstName");
+        clearIfClientError('firstName');
       }
     }
     if (touchedFields.lastName) {
@@ -70,7 +78,7 @@ const SignUpPage = () => {
         newErrors.lastName = emptyErrors.lastName;
         hasError = true;
       } else {
-        clearIfClientError("lastName");
+        clearIfClientError('lastName');
       }
     }
 
@@ -79,7 +87,7 @@ const SignUpPage = () => {
         newErrors.email = emptyErrors.email;
         hasError = true;
       } else {
-        clearIfClientError("email");
+        clearIfClientError('email');
       }
     }
 
@@ -87,12 +95,19 @@ const SignUpPage = () => {
       if (data.password.trim().length === 0) {
         newErrors.password = emptyErrors.password;
         hasError = true;
-      } else if (passwordStrength(data.password) < 4) {
+      } else if (
+        passwordStrength(data.password, [
+          data.firstName,
+          data.lastName,
+          data.email,
+          'VaultBox',
+        ]) < 4
+      ) {
         newErrors.password =
           'Password must reach "Strong" strength to proceed.';
         hasError = true;
       } else {
-        clearIfClientError("password");
+        clearIfClientError('password');
       }
     }
 
@@ -102,10 +117,10 @@ const SignUpPage = () => {
         newErrors.confirmPassword = emptyErrors.confirmPassword;
         hasError = true;
       } else if (data.confirmPassword !== data.password) {
-        newErrors.confirmPassword = "Passwords do not match.";
+        newErrors.confirmPassword = 'Passwords do not match.';
         hasError = true;
       } else {
-        clearIfClientError("confirmPassword");
+        clearIfClientError('confirmPassword');
       }
     }
 
@@ -135,50 +150,77 @@ const SignUpPage = () => {
     validateFormData(formData, updatedTouched);
   };
 
-  const passwordStrength = (password) => {
-    const userInput = [
-      formData.firstName,
-      formData.lastName,
-      formData.email,
-      "VaultBox",
-    ];
-    return zxcvbn(password, userInput).score;
-  };
+  const passwordStrength = (password, userInput) =>
+    zxcvbn(password, userInput).score;
 
   const getStrengthLabel = (score) => {
     switch (score) {
       case 0:
         return {
-          label: "Very Weak",
-          color: "bg-red-600",
-          text: "text-red-500",
+          label: 'Very Weak',
+          color: 'bg-red-600',
+          text: 'text-red-500',
         };
       case 1:
         return {
-          label: "Weak",
-          color: "bg-orange-500",
-          text: "text-orange-500",
+          label: 'Weak',
+          color: 'bg-orange-500',
+          text: 'text-orange-500',
         };
       case 2:
         return {
-          label: "Fair",
-          color: "bg-yellow-500",
-          text: "text-yellow-500",
+          label: 'Fair',
+          color: 'bg-yellow-500',
+          text: 'text-yellow-500',
         };
       case 3:
-        return { label: "Good", color: "bg-lime-500", text: "text-lime-500" };
+        return { label: 'Good', color: 'bg-lime-500', text: 'text-lime-500' };
       case 4:
         return {
-          label: "Strong",
-          color: "bg-green-500",
-          text: "text-green-500",
+          label: 'Strong',
+          color: 'bg-green-500',
+          text: 'text-green-500',
         };
       default:
-        return { label: "", color: "bg-gray-700", text: "text-gray-500" };
+        return { label: '', color: 'bg-gray-700', text: 'text-gray-500' };
     }
   };
 
-  const score = formData.password ? passwordStrength(formData.password) : 0;
+  const score = useMemo(() => {
+    if (!formData.password) {
+      return 0;
+    }
+
+    const userInput = [
+      formData.firstName,
+      formData.lastName,
+      formData.email,
+      'VaultBox',
+    ];
+
+    return passwordStrength(formData.password, userInput);
+  }, [
+    formData.email,
+    formData.firstName,
+    formData.lastName,
+    formData.password,
+  ]);
+
+  const memoedCreateVaultKey = useMemo(() => {
+    let cachedPromise = null;
+
+    return () => {
+      if (!formData.password) {
+        return null;
+      }
+
+      if (!cachedPromise) {
+        cachedPromise = createVaultKey(formData.password);
+      }
+
+      return cachedPromise;
+    };
+  }, [formData.password]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -186,7 +228,7 @@ const SignUpPage = () => {
     // Mark all fields as touched
     const allTouched = Object.keys(touched).reduce(
       (acc, key) => ({ ...acc, [key]: true }),
-      {},
+      {}
     );
     setTouched(allTouched);
 
@@ -198,17 +240,49 @@ const SignUpPage = () => {
     setIsLoading(true);
 
     try {
-      const res = await axios.post("/api/auth/register", formData);
-      navigate("/login");
-    } catch (error) {
-      const { data } = error.response;
-      if (!data) {
-        setErrors((prev) => ({ ...prev, serverError: "Something went wrong" }));
+      const vaultKeyPromise = memoedCreateVaultKey();
+      if (!vaultKeyPromise) {
+        setErrors((prev) => ({
+          ...prev,
+          serverError: 'Password is required to create a vault key.',
+        }));
+        setIsLoading(false);
+        return;
       }
 
-      if (data.error) {
-        setErrors((prev) => ({ ...prev, serverError: data.error }));
-      }
+      const { eDEK, salt, iv } = await vaultKeyPromise;
+      const { user, accessToken } = await registerUser({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        eDEK,
+        salt,
+        iv,
+      });
+      setAccessToken(accessToken);
+      setUser(user);
+      const vaultKey = await getVaultKey();
+      const kek = await generateKEK(
+        formData.password,
+        base64ToBuffer(vaultKey.salt)
+      );
+      const dek = await decryptDEK(
+        kek,
+        base64ToBuffer(vaultKey.eDEK),
+        base64ToBuffer(vaultKey.iv)
+      );
+      setKEK(kek);
+      setDEK(dek);
+      navigate('/dashboard');
+    } catch (error) {
+      console.log(error);
+
+      const message = error?.response?.data?.message || 'Something went wrong.';
+      setErrors((prev) => ({
+        ...prev,
+        serverError: message,
+      }));
     }
 
     setIsLoading(false);
@@ -218,8 +292,8 @@ const SignUpPage = () => {
   const inputClass = (fieldName) =>
     `w-full pl-10 pr-4 py-3 bg-gray-900 border rounded-lg outline-none transition-all placeholder-gray-600 text-white focus:ring-2 ${
       errors[fieldName]
-        ? "border-red-500 focus:ring-red-500/40"
-        : "border-gray-800 focus:ring-white/20 focus:border-gray-600"
+        ? 'border-red-500 focus:ring-red-500/40'
+        : 'border-gray-800 focus:ring-white/20 focus:border-gray-600'
     }`;
 
   return (
@@ -258,6 +332,12 @@ const SignUpPage = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* General Error */}
+            {errors.serverError && (
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
+                {errors.serverError}
+              </div>
+            )}
             {/* First Name & Last Name */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -276,7 +356,7 @@ const SignUpPage = () => {
                     id="firstName"
                     name="firstName"
                     placeholder="John"
-                    className={inputClass("firstName")}
+                    className={inputClass('firstName')}
                     value={formData.firstName}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -305,7 +385,7 @@ const SignUpPage = () => {
                     id="lastName"
                     name="lastName"
                     placeholder="Doe"
-                    className={inputClass("lastName")}
+                    className={inputClass('lastName')}
                     value={formData.lastName}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -334,7 +414,7 @@ const SignUpPage = () => {
                   id="email"
                   name="email"
                   placeholder="you@example.com"
-                  className={inputClass("email")}
+                  className={inputClass('email')}
                   value={formData.email}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -362,7 +442,7 @@ const SignUpPage = () => {
                   id="password"
                   name="password"
                   placeholder="••••••••"
-                  className={inputClass("password")}
+                  className={inputClass('password')}
                   value={formData.password}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -390,7 +470,7 @@ const SignUpPage = () => {
                         className={`h-full flex-1 rounded-full transition-all duration-300 ${
                           i <= score && formData.password
                             ? getStrengthLabel(score).color
-                            : "bg-gray-700"
+                            : 'bg-gray-700'
                         }`}
                       />
                     ))}
@@ -419,7 +499,7 @@ const SignUpPage = () => {
                   id="confirmPassword"
                   name="confirmPassword"
                   placeholder="••••••••"
-                  className={inputClass("confirmPassword")}
+                  className={inputClass('confirmPassword')}
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -450,11 +530,6 @@ const SignUpPage = () => {
                 </>
               )}
             </button>
-            {errors.serverError && (
-              <p className="text-md text-center text-red-400 mt-1">
-                {errors.serverError}
-              </p>
-            )}
 
             <p className="text-xs text-center text-gray-500 max-w-xs mx-auto">
               By clicking &quot;Create Account&quot;, you agree to our Terms of

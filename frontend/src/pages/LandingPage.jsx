@@ -1,5 +1,5 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   Shield,
   Users,
@@ -8,7 +8,7 @@ import {
   MessageSquare,
   Key,
   ArrowRight,
-} from "lucide-react";
+} from 'lucide-react';
 
 const LandingPage = () => {
   return (
@@ -48,7 +48,7 @@ const LandingPage = () => {
               to="/signup"
               className="px-8 py-4 bg-white text-black text-lg font-semibold rounded hover:bg-gray-200 transition-all flex items-center gap-2 cursor-pointer group"
             >
-              Start Securely{" "}
+              Start Securely{' '}
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
@@ -64,18 +64,18 @@ const LandingPage = () => {
           {[
             {
               icon: <Shield className="w-10 h-10 mb-4" />,
-              title: "Total Privacy",
+              title: 'Total Privacy',
               desc: "Your passwords are scrambled on your device before they ever reach our servers. We couldn't see your data even if we wanted to.",
             },
             {
               icon: <Users className="w-10 h-10 mb-4" />,
-              title: "A Secure Safety Net",
-              desc: "If you lose your master password, you can use a backup system involving three trusted friends. Any two of them can help you unlock your account.",
+              title: 'A Secure Safety Net',
+              desc: 'If you lose your master password, you can use a backup system involving three trusted friends. Any two of them can help you unlock your account.',
             },
             {
               icon: <Github className="w-10 h-10 mb-4" />,
-              title: "Open and Honest",
-              desc: "Our code is public and open-source. Anyone can check it to see exactly how your data is handled.",
+              title: 'Open and Honest',
+              desc: 'Our code is public and open-source. Anyone can check it to see exactly how your data is handled.',
             },
           ].map((feature, i) => (
             <div
@@ -103,18 +103,18 @@ const LandingPage = () => {
             {[
               {
                 icon: <UserPlus className="w-8 h-8 text-white" />,
-                title: "1. Select your helpers",
-                desc: "Choose three people you trust during setup.",
+                title: '1. Select your helpers',
+                desc: 'Choose three people you trust during setup.',
               },
               {
                 icon: <MessageSquare className="w-8 h-8 text-white" />,
-                title: "2. Request access",
-                desc: "If you get locked out, ask them to confirm it’s really you.",
+                title: '2. Request access',
+                desc: 'If you get locked out, ask them to confirm it’s really you.',
               },
               {
                 icon: <Key className="w-8 h-8 text-white" />,
-                title: "3. Restore your vault",
-                desc: "Once two people confirm, you use a backup phrase to get back into your account.",
+                title: '3. Restore your vault',
+                desc: 'Once two people confirm, you use a backup phrase to get back into your account.',
               },
             ].map((step, i) => (
               <div

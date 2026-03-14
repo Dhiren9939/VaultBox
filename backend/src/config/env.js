@@ -11,6 +11,7 @@ const env = cleanEnv(process.env, {
   MONGODB_URI: url(),
   COOKIE_SECRET: str(),
   JWT_EXPIRES_IN_SEC: num(),
+  REFRESH_TOKEN_EXPIRES_IN_SEC: num(),
 });
 
 export default env;

@@ -1,13 +1,20 @@
-import React, { useState } from "react";
-import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import React, { useState } from 'react';
+import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { getVaultKey, loginUser } from '../service/api';
+import { useAuth } from '../context/AuthProvider.jsx';
+import {
+  base64ToBuffer,
+  decryptDEK,
+  generateKEK,
+} from '../service/cryptoService';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { setAccessToken, setUser, setKEK, setDEK } = useAuth();
   const [formData, setFormData] = useState({
-    email: "",
-    password: "",
+    email: '',
+    password: '',
   });
 
   const [touched, setTouched] = useState({
@@ -16,14 +23,14 @@ const LoginPage = () => {
   });
 
   const emptyErrors = {
-    email: "Email cannot be empty.",
-    password: "Password cannot be empty.",
+    email: 'Email cannot be empty.',
+    password: 'Password cannot be empty.',
   };
 
   const [errors, setErrors] = useState({
-    email: "",
-    password: "",
-    general: "",
+    email: '',
+    password: '',
+    serverError: '',
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -31,12 +38,12 @@ const LoginPage = () => {
   const clientErrors = new Set([...Object.values(emptyErrors)]);
 
   const validateFormData = (data = formData, touchedFields = touched) => {
-    const newErrors = { ...errors, general: "" };
+    const newErrors = { ...errors, serverError: '' };
     let hasError = false;
 
     const clearIfClientError = (field) => {
       if (clientErrors.has(newErrors[field])) {
-        newErrors[field] = "";
+        newErrors[field] = '';
       }
     };
 
@@ -45,7 +52,7 @@ const LoginPage = () => {
         newErrors.email = emptyErrors.email;
         hasError = true;
       } else {
-        clearIfClientError("email");
+        clearIfClientError('email');
       }
     }
 
@@ -54,7 +61,7 @@ const LoginPage = () => {
         newErrors.password = emptyErrors.password;
         hasError = true;
       } else {
-        clearIfClientError("password");
+        clearIfClientError('password');
       }
     }
 
@@ -89,7 +96,7 @@ const LoginPage = () => {
 
     const allTouched = Object.keys(touched).reduce(
       (acc, key) => ({ ...acc, [key]: true }),
-      {},
+      {}
     );
     setTouched(allTouched);
 
@@ -101,17 +108,25 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      console.log(formData);
-      const res = await axios.post("/api/auth/login", formData);
-      navigate("/");
+      const { user, accessToken } = await loginUser(
+        formData.email,
+        formData.password
+      );
+      setAccessToken(accessToken);
+      setUser(user);
+      const { eDEK, salt, iv } = await getVaultKey();
+      const kek = await generateKEK(formData.password, base64ToBuffer(salt));
+      const dek = await decryptDEK(
+        kek,
+        base64ToBuffer(eDEK),
+        base64ToBuffer(iv)
+      );
+      setKEK(kek);
+      setDEK(dek);
+      navigate('/dashboard');
     } catch (error) {
-      const { data } = error.response;
-      if (!data) {
-        setErrors((prev) => ({ ...prev, serverError: "Something went wrong" }));
-      }
-      if (data.error) {
-        setErrors((prev) => ({ ...prev, serverError: data.error }));
-      }
+      const message = error?.response?.data?.message || 'Something went wrong.';
+      setErrors((prev) => ({ ...prev, serverError: message }));
     }
 
     setIsLoading(false);
@@ -121,8 +136,8 @@ const LoginPage = () => {
   const inputClass = (fieldName) =>
     `w-full pl-10 pr-4 py-3 bg-gray-900 border rounded-lg outline-none transition-all placeholder-gray-600 text-white focus:ring-2 ${
       errors[fieldName]
-        ? "border-red-500 focus:ring-red-500/40"
-        : "border-gray-800 focus:ring-white/20 focus:border-gray-600"
+        ? 'border-red-500 focus:ring-red-500/40'
+        : 'border-gray-800 focus:ring-white/20 focus:border-gray-600'
     }`;
 
   return (
@@ -158,9 +173,9 @@ const LoginPage = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* General Error */}
-            {errors.general && (
+            {errors.serverError && (
               <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
-                {errors.general}
+                {errors.serverError}
               </div>
             )}
 
@@ -181,7 +196,7 @@ const LoginPage = () => {
                   id="email"
                   name="email"
                   placeholder="you@example.com"
-                  className={inputClass("email")}
+                  className={inputClass('email')}
                   value={formData.email}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -217,7 +232,7 @@ const LoginPage = () => {
                   id="password"
                   name="password"
                   placeholder="••••••••"
-                  className={inputClass("password")}
+                  className={inputClass('password')}
                   value={formData.password}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -246,13 +261,8 @@ const LoginPage = () => {
                 </>
               )}
             </button>
-            {errors.serverError && (
-              <p className="text-md text-center text-red-400 mt-1">
-                {errors.serverError}
-              </p>
-            )}
             <p className="text-sm text-center text-gray-500">
-              Don&apos;t have an account?{" "}
+              Don&apos;t have an account?{' '}
               <Link
                 to="/signup"
                 className="text-white hover:underline transition-colors"
