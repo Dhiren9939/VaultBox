@@ -1,7 +1,7 @@
-class UserExistsError extends Error {
+class UserNotFoundError extends Error {
   constructor(message) {
     super(message);
   }
 }
 
-export default UserExistsError;
+export default UserNotFoundError;
