@@ -250,27 +250,30 @@ const SignUpPage = () => {
         return;
       }
 
-      const { eDEK, salt, iv } = await vaultKeyPromise;
+      const { eDEK, reDEK, kSalt, rSalt, kIv, rIv } = await vaultKeyPromise;
       const { user, accessToken } = await registerUser({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         password: formData.password,
         eDEK,
-        salt,
-        iv,
+        reDEK,
+        kSalt,
+        rSalt,
+        kIv,
+        rIv,
       });
       setAccessToken(accessToken);
       setUser(user);
       const vaultKey = await getVaultKey();
       const kek = await generateKEK(
         formData.password,
-        base64ToBuffer(vaultKey.salt)
+        base64ToBuffer(vaultKey.kSalt)
       );
       const dek = await decryptDEK(
         kek,
         base64ToBuffer(vaultKey.eDEK),
-        base64ToBuffer(vaultKey.iv)
+        base64ToBuffer(vaultKey.kIv)
       );
       setKEK(kek);
       setDEK(dek);

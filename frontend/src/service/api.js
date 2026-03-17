@@ -84,15 +84,15 @@ async function getEntries(page = 1, limit = 10) {
   return response.data.details;
 }
 
-async function postEntries(cipherText, iv) {
-  const response = await api.post('/api/vaults/entries', { cipherText, iv });
+async function postEntries(cipherText, eIv) {
+  const response = await api.post('/api/vaults/entries', { cipherText, eIv });
   return response.data.details;
 }
 
-async function putEntry(entryId, cipherText, iv) {
+async function putEntry(entryId, cipherText, eIv) {
   const response = await api.put(`/api/vaults/entries/${entryId}`, {
     cipherText,
-    iv,
+    eIv,
   });
   return response.data.details;
 }

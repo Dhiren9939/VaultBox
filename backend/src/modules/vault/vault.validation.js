@@ -7,14 +7,14 @@ export const validateEntryBody = [
     .withMessage('cipherText is required.')
     .isBase64()
     .withMessage('cipherText must be base64.'),
-  body('iv')
+  body('eIv')
     .trim()
     .notEmpty()
-    .withMessage('iv is required.')
+    .withMessage('eIv is required.')
     .isLength({ min: 16, max: 16 })
-    .withMessage('iv must be 16 characters long.')
+    .withMessage('eIv must be 16 characters long.')
     .isBase64()
-    .withMessage('iv must be base64.'),
+    .withMessage('eIv must be base64.'),
 ];
 
 export const validateGetEntriesQuery = [

@@ -12,10 +12,10 @@ import VaultNotFoundError from '#src/errors/VaultNotFoundError.js';
 
 async function handleCreateEntry(req, res) {
   try {
-    const { cipherText, iv } = req.body;
+    const { cipherText, eIv } = req.body;
     const vaultId = req.user.vaultId;
 
-    const entry = await createEntry(vaultId, cipherText, iv);
+    const entry = await createEntry(vaultId, cipherText, eIv);
 
     return SuccessResponse(res, { entry }, 'Entry Created Successfully', 201);
   } catch (error) {
@@ -59,11 +59,11 @@ async function handleGetEntries(req, res) {
 
 async function handleUpdateEntry(req, res) {
   try {
-    const { cipherText, iv } = req.body;
+    const { cipherText, eIv } = req.body;
     const { entryId } = req.params;
     const vaultId = req.user.vaultId;
 
-    const entry = await updateEntry(vaultId, entryId, cipherText, iv);
+    const entry = await updateEntry(vaultId, entryId, cipherText, eIv);
 
     return SuccessResponse(res, { entry }, 'Entry Updated Successfully', 200);
   } catch (error) {

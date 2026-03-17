@@ -32,47 +32,47 @@ const EntriesTable = ({
         )}
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[760px]">
-          <thead>
-            <tr className="border-b border-gray-900 text-gray-500 text-sm">
-              <th className="px-6 py-4 font-medium uppercase tracking-wider">
-                Title
-              </th>
-              <th className="px-6 py-4 font-medium uppercase tracking-wider">
-                Identifier
-              </th>
-              <th className="px-6 py-4 font-medium uppercase tracking-wider">
-                Site
-              </th>
-              <th className="px-6 py-4 font-medium uppercase tracking-wider">
-                Password
-              </th>
-              <th className="px-6 py-4 font-medium uppercase tracking-wider">
-                Note
-              </th>
-              <th className="px-6 py-4 font-medium uppercase tracking-wider text-right">
-                Delete
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-900">
-            {entries.map((entry) => (
-              <EntryRow
-                key={entry.id}
-                entry={entry}
-                isPasswordVisible={!!showPasswords[entry.id]}
-                onTogglePassword={() => onTogglePassword(entry.id)}
-                onEdit={() => onEditEntry(entry)}
-                onDelete={() => onDeleteEntry(entry.id)}
-              />
-            ))}
-            {!isLoadingEntries && entries.length === 0 && (
-              <tr>
-                <td className="px-6 py-6 text-gray-500" colSpan={6}>
-                  No entries yet. Create your first vault item.
-                </td>
+            <thead>
+              <tr className="border-b border-gray-900 text-gray-500 text-sm">
+                <th className="px-6 py-4 font-medium uppercase tracking-wider">
+                  Title
+                </th>
+                <th className="px-6 py-4 font-medium uppercase tracking-wider">
+                  Identifier
+                </th>
+                <th className="px-6 py-4 font-medium uppercase tracking-wider">
+                  Site
+                </th>
+                <th className="px-6 py-4 font-medium uppercase tracking-wider">
+                  Password
+                </th>
+                <th className="px-6 py-4 font-medium uppercase tracking-wider">
+                  Note
+                </th>
+                <th className="px-6 py-4 font-medium uppercase tracking-wider text-right">
+                  Actions
+                </th>
               </tr>
-            )}
-          </tbody>
+            </thead>
+            <tbody className="divide-y divide-gray-900">
+              {entries.map((entry) => (
+                <EntryRow
+                  key={entry.id}
+                  entry={entry}
+                  isPasswordVisible={!!showPasswords[entry.id]}
+                  onTogglePassword={() => onTogglePassword(entry.id)}
+                  onEdit={() => onEditEntry(entry)}
+                  onDelete={() => onDeleteEntry(entry.id)}
+                />
+              ))}
+              {!isLoadingEntries && entries.length === 0 && (
+                <tr>
+                  <td className="px-6 py-6 text-gray-500" colSpan={6}>
+                    No entries yet. Create your first vault item.
+                  </td>
+                </tr>
+              )}
+            </tbody>
           </table>
         </div>
       </div>
@@ -115,3 +115,4 @@ const EntriesTable = ({
 };
 
 export default EntriesTable;
+

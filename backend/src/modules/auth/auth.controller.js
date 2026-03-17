@@ -19,7 +19,18 @@ import InvalidRefreshToken from '#src/errors/InvalidRefreshToken.js';
  * @returns {Promise<void>}
  */
 async function handleRegister(req, res) {
-  const { firstName, lastName, email, password, eDEK, iv, salt } = req.body;
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
+    eDEK,
+    reDEK,
+    kIv,
+    rIv,
+    kSalt,
+    rSalt,
+  } = req.body;
   try {
     const { user, accessToken, refreshToken } = await registerUser(
       firstName,
@@ -27,8 +38,11 @@ async function handleRegister(req, res) {
       email,
       password,
       eDEK,
-      iv,
-      salt
+      reDEK,
+      kIv,
+      rIv,
+      kSalt,
+      rSalt
     );
 
     setCookie(

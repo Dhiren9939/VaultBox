@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const entrySchema = new mongoose.Schema({
   cipherText: { type: String, required: true },
-  iv: { type: String, required: true },
+  eIv: { type: String, required: true },
 });
 
 const Entry = mongoose.model('Entry', entrySchema);
@@ -15,8 +15,11 @@ const vaultSchema = new mongoose.Schema({
     unique: true,
   },
   eDEK: { type: String, required: true },
-  salt: { type: String, required: true },
-  iv: { type: String, required: true },
+  reDEK: { type: String, required: true },
+  kSalt: { type: String, required: true },
+  rSalt: { type: String, required: true },
+  kIv: { type: String, required: true },
+  rIv: { type: String, required: true },
   entries: { type: [entrySchema], default: [] },
 });
 

@@ -68,8 +68,11 @@ async function registerUser(
   email,
   password,
   eDEK,
-  iv,
-  salt
+  reDEK,
+  kIv,
+  rIv,
+  kSalt,
+  rSalt
 ) {
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -86,7 +89,15 @@ async function registerUser(
       hashedPassword,
     });
 
-    const vault = await createVault(user.id, eDEK, salt, iv);
+    const vault = await createVault(
+      user.id,
+      eDEK,
+      reDEK,
+      kSalt,
+      rSalt,
+      kIv,
+      rIv
+    );
     const accessToken = generateAccessToken(user, vault.id);
     const refreshToken = generateRefreshToken(user.id);
 

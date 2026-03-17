@@ -33,22 +33,46 @@ export const validateRegisterBody = [
     .withMessage('eDEK must be 64 characters long.')
     .isBase64()
     .withMessage('Invalid eDEK format.'),
-  body('salt')
+  body('reDEK')
     .trim()
     .notEmpty()
-    .withMessage('Salt is required.')
+    .withMessage('reDEK is required.')
+    .isLength({ min: 64, max: 64 }) // (32 + 16) -> 64
+    .withMessage('reDEK must be 64 characters long.')
+    .isBase64()
+    .withMessage('Invalid reDEK format.'),
+  body('kSalt')
+    .trim()
+    .notEmpty()
+    .withMessage('kSalt is required.')
     .isLength({ min: 44, max: 44 }) // 32 -> 44
-    .withMessage('Salt must be 44 characters long.')
+    .withMessage('kSalt must be 44 characters long.')
     .isBase64()
-    .withMessage('Invalid salt format.'),
-  body('iv')
+    .withMessage('Invalid kSalt format.'),
+  body('rSalt')
     .trim()
     .notEmpty()
-    .withMessage('IV is required.')
-    .isLength({ min: 16, max: 16 }) // 12 -> 16
-    .withMessage('IV must be 16 characters long.')
+    .withMessage('rSalt is required.')
+    .isLength({ min: 44, max: 44 }) // 32 -> 44
+    .withMessage('rSalt must be 44 characters long.')
     .isBase64()
-    .withMessage('Invalid IV format.'),
+    .withMessage('Invalid rSalt format.'),
+  body('kIv')
+    .trim()
+    .notEmpty()
+    .withMessage('kIv is required.')
+    .isLength({ min: 16, max: 16 }) // 12 -> 16
+    .withMessage('kIv must be 16 characters long.')
+    .isBase64()
+    .withMessage('Invalid kIv format.'),
+  body('rIv')
+    .trim()
+    .notEmpty()
+    .withMessage('rIv is required.')
+    .isLength({ min: 16, max: 16 }) // 12 -> 16
+    .withMessage('rIv must be 16 characters long.')
+    .isBase64()
+    .withMessage('Invalid rIv format.'),
 ];
 
 export const validateLoginBody = [

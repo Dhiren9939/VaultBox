@@ -35,6 +35,10 @@ VaultBox is a full‑stack password vault that stores encrypted entries and decr
 
 The frontend expects the API at `http://localhost:3000` and the backend allows CORS from `http://localhost:5173`.
 
-## Notes
-- Entries are encrypted client‑side and stored as `{ cipherText, iv }` in the vault.
-- Auth state (access token + key material) lives in the auth context for the session only.
+## Security Architecture
+- **KDF**: Argon2id is used to derive two Key Encryption Keys (KEK and rKEK) from the user's password using `kSalt` and `rSalt`.
+- **Key Material**: 
+  - `eDEK`: Data Encryption Key encrypted with `KEK` using `kIv`.
+  - `reDEK`: Same Data Encryption Key encrypted with `rKEK` using `rIv`.
+- **Entries**: Encrypted client-side using the `DEK` and stored as `{ cipherText, eIv }`.
+- **Session**: Auth state and decrypted `DEK` are kept in memory only.

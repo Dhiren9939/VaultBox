@@ -87,7 +87,7 @@ const Dashboard = () => {
             const decrypted = await decryptEntry(
               DEK,
               entry.cipherText,
-              entry.iv
+              entry.eIv
             );
             return {
               id: entry._id,
@@ -166,11 +166,11 @@ const Dashboard = () => {
     }
     setIsSavingEntry(true);
     try {
-      const { cipherText, iv } = await encryptEntry(DEK, formData);
+      const { cipherText, eIv } = await encryptEntry(DEK, formData);
       if (editingEntryId) {
-        await putEntry(editingEntryId, cipherText, iv);
+        await putEntry(editingEntryId, cipherText, eIv);
       } else {
-        await postEntries(cipherText, iv);
+        await postEntries(cipherText, eIv);
       }
       handleCloseModal();
       setCurrentPage(1);

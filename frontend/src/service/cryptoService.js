@@ -94,12 +94,12 @@ function base64ToBuffer(string) {
 
 /**
  * @param {string} password
- * @param {Uint8Array} salt
+ * @param {Uint8Array} kSalt
  */
-export async function generateKEK(password, salt) {
+export async function generateKEK(password, kSalt) {
   const key = await argon2id({
     password: password,
-    salt: salt,
+    salt: kSalt,
     iterations: 3,
     memorySize: 65536,
     parallelism: 4,
@@ -154,7 +154,7 @@ async function encryptEntry(DEK, data) {
 
   return {
     cipherText: bufferToBase64(encryptedBuffer),
-    iv: bufferToBase64(iv),
+    eIv: bufferToBase64(iv),
   };
 }
 
@@ -164,12 +164,12 @@ async function encryptEntry(DEK, data) {
  * @param {string} iv
  * @returns {Promise<Record<string, any>>}
  */
-async function decryptEntry(DEK, cipherText, iv) {
+async function decryptEntry(DEK, cipherText, eIv) {
   const cryptoKey = await createCryptoKey(DEK);
   const decryptedBuffer = await decrypt(
     base64ToBuffer(cipherText),
     cryptoKey,
-    base64ToBuffer(iv)
+    base64ToBuffer(eIv)
   );
 
   return JSON.parse(bufferToString(decryptedBuffer));
@@ -179,18 +179,25 @@ async function decryptEntry(DEK, cipherText, iv) {
  * Derives a KEK from the password, generates a random DEK, encrypts the DEK,
  * and returns base64-encoded values for storage/transmission.
  * @param {string} password
- * @returns {Promise<{eDEK: string, salt: string, iv: string}>}
+ * @returns {Promise<{eDEK: string, kSalt: string, rSalt: string, iv: string}>}
  */
 export async function createVaultKey(password) {
-  const salt = generateSalt();
-  const bufferKEK = await generateKEK(password, salt);
+  const kSalt = generateSalt();
+  const rSalt = generateSalt();
+  const bufferKEK = await generateKEK(password, kSalt);
+  const bufferRKEK = await generateKEK(password, rSalt);
   const bufferDEK = window.crypto.getRandomValues(new Uint8Array(32));
-  const { eDEK, iv } = await encryptDEK(bufferKEK, bufferDEK);
+
+  const { eDEK, iv: kIv } = await encryptDEK(bufferKEK, bufferDEK);
+  const { eDEK: reDEK, iv: rIv } = await encryptDEK(bufferRKEK, bufferDEK);
 
   return {
     eDEK: bufferToBase64(eDEK),
-    salt: bufferToBase64(salt),
-    iv: bufferToBase64(iv),
+    reDEK: bufferToBase64(reDEK),
+    kSalt: bufferToBase64(kSalt),
+    rSalt: bufferToBase64(rSalt),
+    kIv: bufferToBase64(kIv),
+    rIv: bufferToBase64(rIv),
   };
 }
 

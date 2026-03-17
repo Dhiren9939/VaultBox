@@ -114,12 +114,12 @@ const LoginPage = () => {
       );
       setAccessToken(accessToken);
       setUser(user);
-      const { eDEK, salt, iv } = await getVaultKey();
-      const kek = await generateKEK(formData.password, base64ToBuffer(salt));
+      const { eDEK, kSalt, kIv } = await getVaultKey();
+      const kek = await generateKEK(formData.password, base64ToBuffer(kSalt));
       const dek = await decryptDEK(
         kek,
         base64ToBuffer(eDEK),
-        base64ToBuffer(iv)
+        base64ToBuffer(kIv)
       );
       setKEK(kek);
       setDEK(dek);

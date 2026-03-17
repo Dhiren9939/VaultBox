@@ -2,12 +2,15 @@
 import { Vault } from '#src/modules/vault/vault.model.js';
 import VaultNotFoundError from '#src/errors/VaultNotFoundError.js';
 
-async function createVault(userId, eDEK, salt, iv) {
+async function createVault(userId, eDEK, reDEK, kSalt, rSalt, kIv, rIv) {
   return await Vault.create({
     userId,
     eDEK,
-    salt,
-    iv,
+    reDEK,
+    kSalt,
+    rSalt,
+    kIv,
+    rIv,
   });
 }
 
@@ -15,18 +18,18 @@ async function getVaultKey(vaultId) {
   const vault = await Vault.findById(vaultId);
   if (!vault) throw new VaultNotFoundError('No vault with given vaultId.');
 
-  const { eDEK, salt, iv } = vault;
-  return { eDEK, salt, iv };
+  const { eDEK, reDEK, kSalt, rSalt, kIv, rIv } = vault;
+  return { eDEK, reDEK, kSalt, rSalt, kIv, rIv };
 }
 
 /**
  * Adds a new encrypted entry to a vault.
  */
-async function createEntry(vaultId, cipherText, iv) {
+async function createEntry(vaultId, cipherText, eIv) {
   const vault = await Vault.findById(vaultId);
   if (!vault) throw new VaultNotFoundError('No vault with given vaultId.');
 
-  vault.entries.push({ cipherText, iv });
+  vault.entries.push({ cipherText, eIv });
   await vault.save();
 
   return vault.entries[vault.entries.length - 1];
@@ -66,7 +69,7 @@ export {
   deleteEntry,
 };
 
-async function updateEntry(vaultId, entryId, cipherText, iv) {
+async function updateEntry(vaultId, entryId, cipherText, eIv) {
   const vault = await Vault.findById(vaultId);
   if (!vault) throw new VaultNotFoundError('No vault with given vaultId.');
 
@@ -74,7 +77,7 @@ async function updateEntry(vaultId, entryId, cipherText, iv) {
   if (!entry) throw new VaultNotFoundError('No entry with given entryId.');
 
   entry.cipherText = cipherText;
-  entry.iv = iv;
+  entry.eIv = eIv;
   await vault.save();
 
   return entry;
