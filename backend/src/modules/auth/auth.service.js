@@ -72,7 +72,8 @@ async function registerUser(
   kIv,
   rIv,
   kSalt,
-  rSalt
+  rSalt,
+  fAttributes
 ) {
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -87,6 +88,7 @@ async function registerUser(
       lastName,
       email,
       hashedPassword,
+      fAttributes,
     });
 
     const vault = await createVault(

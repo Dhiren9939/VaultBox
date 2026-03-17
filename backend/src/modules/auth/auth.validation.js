@@ -73,6 +73,9 @@ export const validateRegisterBody = [
     .withMessage('rIv must be 16 characters long.')
     .isBase64()
     .withMessage('Invalid rIv format.'),
+  body('fAttributes').isObject().withMessage('fAttributes is required.'),
+  body('fAttributes.a1').isString().notEmpty().withMessage('a1 is required.'),
+  body('fAttributes.a2').isString().notEmpty().withMessage('a2 is required.'),
 ];
 
 export const validateLoginBody = [

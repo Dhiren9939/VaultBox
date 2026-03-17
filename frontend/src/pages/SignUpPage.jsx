@@ -8,6 +8,7 @@ import {
   createVaultKey,
   decryptDEK,
   generateKEK,
+  generateFAttributes,
 } from '../service/cryptoService';
 import { useAuth } from '../context/AuthProvider.jsx';
 
@@ -251,6 +252,7 @@ const SignUpPage = () => {
       }
 
       const { eDEK, reDEK, kSalt, rSalt, kIv, rIv } = await vaultKeyPromise;
+      const fAttributes = generateFAttributes();
       const { user, accessToken } = await registerUser({
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -262,6 +264,7 @@ const SignUpPage = () => {
         rSalt,
         kIv,
         rIv,
+        fAttributes,
       });
       setAccessToken(accessToken);
       setUser(user);

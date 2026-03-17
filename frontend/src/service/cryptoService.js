@@ -96,7 +96,7 @@ function base64ToBuffer(string) {
  * @param {string} password
  * @param {Uint8Array} kSalt
  */
-export async function generateKEK(password, kSalt) {
+async function generateKEK(password, kSalt) {
   const key = await argon2id({
     password: password,
     salt: kSalt,
@@ -114,7 +114,7 @@ export async function generateKEK(password, kSalt) {
  * @param {Uint8Array} KEK
  * @param {Uint8Array} DEK
  */
-export async function encryptDEK(KEK, DEK) {
+async function encryptDEK(KEK, DEK) {
   const cryptoKey = await createCryptoKey(KEK);
   const iv = generateIV();
   const encryptedBuffer = await encrypt(DEK, cryptoKey, iv);
@@ -181,7 +181,7 @@ async function decryptEntry(DEK, cipherText, eIv) {
  * @param {string} password
  * @returns {Promise<{eDEK: string, kSalt: string, rSalt: string, iv: string}>}
  */
-export async function createVaultKey(password) {
+async function createVaultKey(password) {
   const kSalt = generateSalt();
   const rSalt = generateSalt();
   const bufferKEK = await generateKEK(password, kSalt);
@@ -201,4 +201,42 @@ export async function createVaultKey(password) {
   };
 }
 
-export { base64ToBuffer, decryptDEK, encryptEntry, decryptEntry };
+const P = (1n << 127n) - 1n;
+
+function bigIntToBuffer(val) {
+  let hex = val.toString(16);
+  if (hex.length % 2 != 0) hex = '0' + hex;
+  return Uint8Array.fromHex(hex);
+}
+
+function bufferToBigInt(buffer) {
+  return BigInt('0x' + buffer.toHex());
+}
+
+function generateFAttributes() {
+  const bufferA2R = new Uint8Array(16);
+  const bufferA1R = new Uint8Array(16);
+  crypto.getRandomValues(bufferA2R);
+  crypto.getRandomValues(bufferA1R);
+
+  const bigIntA2 = bufferToBigInt(bufferA2R) % P;
+  const bigIntA1 = bufferToBigInt(bufferA1R) % P;
+
+  const bufferA2 = bigIntToBuffer(bigIntA2);
+  const bufferA1 = bigIntToBuffer(bigIntA1);
+
+  return { a2: bufferToBase64(bufferA2), a1: bufferToBase64(bufferA1) };
+}
+
+export {
+  createVaultKey,
+  encryptDEK,
+  generateKEK,
+  base64ToBuffer,
+  decryptDEK,
+  encryptEntry,
+  decryptEntry,
+  generateFAttributes,
+};
+
+
