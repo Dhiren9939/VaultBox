@@ -7,6 +7,7 @@ import {
   getEntries,
   getVaultKey,
   updateEntry,
+  addShardToVault,
 } from './vault.service.js';
 import VaultNotFoundError from '#src/errors/VaultNotFoundError.js';
 
@@ -88,10 +89,26 @@ async function handleDeleteEntry(req, res) {
   }
 }
 
+async function handleAddShard(req, res) {
+  try {
+    const { senderId, shardStr } = req.body;
+    const vaultId = req.user.vaultId;
+
+    const shard = await addShardToVault(vaultId, senderId, shardStr);
+
+    return SuccessResponse(res, { shard }, 'Shard added to vault.', 201);
+  } catch (error) {
+    if (error instanceof VaultNotFoundError)
+      return ErrorResponse(res, {}, error.message, 404);
+    throw error;
+  }
+}
+
 export {
   handleCreateEntry,
   handleGetKey,
   handleGetEntries,
   handleUpdateEntry,
   handleDeleteEntry,
+  handleAddShard,
 };

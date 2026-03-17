@@ -9,12 +9,13 @@ import {
   decryptDEK,
   generateKEK,
   generateFAttributes,
+  generateRSAKeyPair,
 } from '../service/cryptoService';
 import { useAuth } from '../context/AuthProvider.jsx';
 
 const SignUpPage = () => {
   const navigate = useNavigate();
-  const { setAccessToken, setUser, setKEK, setDEK } = useAuth();
+  const { setAccessToken, setUser, setKEK, setDEK, setRKEK } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -251,8 +252,11 @@ const SignUpPage = () => {
         return;
       }
 
-      const { eDEK, reDEK, kSalt, rSalt, kIv, rIv } = await vaultKeyPromise;
+      const { eDEK, reDEK, kSalt, rSalt, kIv, rIv, bufferKEK } = await vaultKeyPromise;
       const fAttributes = generateFAttributes();
+      const { publicKey, encryptedPrivateKey, rsaIv } = await generateRSAKeyPair(
+        bufferKEK
+      );
       const { user, accessToken } = await registerUser({
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -265,6 +269,9 @@ const SignUpPage = () => {
         kIv,
         rIv,
         fAttributes,
+        publicKey,
+        encryptedPrivateKey,
+        rsaIv,
       });
       setAccessToken(accessToken);
       setUser(user);
@@ -273,12 +280,17 @@ const SignUpPage = () => {
         formData.password,
         base64ToBuffer(vaultKey.kSalt)
       );
+      const rkek = await generateKEK(
+        formData.password,
+        base64ToBuffer(vaultKey.rSalt)
+      );
       const dek = await decryptDEK(
         kek,
         base64ToBuffer(vaultKey.eDEK),
         base64ToBuffer(vaultKey.kIv)
       );
       setKEK(kek);
+      setRKEK(rkek);
       setDEK(dek);
       navigate('/dashboard');
     } catch (error) {

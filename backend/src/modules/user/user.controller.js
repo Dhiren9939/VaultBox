@@ -4,11 +4,22 @@ import UserNotFoundError from '#src/errors/UserNotFoundError.js';
 import {
   deleteUserAccount,
   getUserProfile,
+  getUserPublicProfile,
   updateUserProfile,
 } from '#src/modules/user/user.service.js';
 
 async function handleGetUser(req, res) {
   try {
+    const email = req.query.email;
+    if (email) {
+      const publicUser = await getUserPublicProfile(email);
+      return SuccessResponse(
+        res,
+        { user: publicUser },
+        'User fetched successfully.',
+        200
+      );
+    }
     const userId = req.user.id;
     const user = await getUserProfile(userId);
     return SuccessResponse(res, { user }, 'User fetched successfully.', 200);

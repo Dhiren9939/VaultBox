@@ -6,6 +6,8 @@ import {
   Settings,
   LogOut,
   ShieldCheck,
+  Inbox,
+  KeyRound,
 } from 'lucide-react';
 import {
   getEntries,
@@ -17,10 +19,15 @@ import {
 import { decryptEntry, encryptEntry } from '../service/cryptoService';
 import { useAuth } from '../context/AuthProvider.jsx';
 import EntriesTable from '../components/EntriesTable.jsx';
+import DeadDropInbox from '../components/DeadDropInbox.jsx';
 
 const Dashboard = () => {
   const { DEK, setAccessToken, setUser, setKEK, setDEK } = useAuth();
   const navigate = useNavigate();
+  const [activeSection, setActiveSection] = useState('passwords');
+  const [deadDropShards, setDeadDropShards] = useState([]);
+  const [isLoadingDeadDrops, setIsLoadingDeadDrops] = useState(false);
+  const [deadDropError, setDeadDropError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showPasswords, setShowPasswords] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -237,19 +244,54 @@ const Dashboard = () => {
           <ShieldCheck className="w-8 h-8" /> VaultBox
         </div>
 
-        <nav className="flex-1 space-y-2">
-          <a
-            href="#"
-            className="flex items-center gap-3 px-4 py-3 bg-white text-black rounded-lg font-medium transition-colors"
+        <nav className="flex-1 space-y-1">
+          <button
+            type="button"
+            onClick={() => setActiveSection('passwords')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeSection === 'passwords'
+                ? 'bg-white text-black'
+                : 'text-gray-400 hover:bg-gray-900'
+            }`}
           >
             <LayoutDashboard size={20} /> All Passwords
-          </a>
-          <a
-            href="#"
-            className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-900 rounded-lg transition-colors"
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('dead-drops')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeSection === 'dead-drops'
+                ? 'bg-white text-black'
+                : 'text-gray-400 hover:bg-gray-900'
+            }`}
           >
-            <Settings size={20} /> Settings
-          </a>
+            <Inbox size={20} /> Dead Drops
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('recovery')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeSection === 'recovery'
+                ? 'bg-white text-black'
+                : 'text-gray-400 hover:bg-gray-900'
+            }`}
+          >
+            <KeyRound size={20} /> Recovery
+          </button>
+
+          <div className="!mt-4 pt-4 border-t border-gray-800">
+            <button
+              type="button"
+              onClick={() => setActiveSection('settings')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                activeSection === 'settings'
+                  ? 'bg-white text-black font-medium'
+                  : 'text-gray-400 hover:bg-gray-900'
+              }`}
+            >
+              <Settings size={20} /> Settings
+            </button>
+          </div>
         </nav>
 
         <button
@@ -275,44 +317,123 @@ const Dashboard = () => {
             <LogOut size={18} /> Log Out
           </button>
         </div>
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 sm:mb-10">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">My Vault</h1>
-            <p className="text-gray-400">
-              Manage and secure your digital identity in one place.
-            </p>
-          </div>
+        {/* Passwords Section */}
+        {activeSection === 'passwords' && (
+          <>
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 sm:mb-10">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold">My Vault</h1>
+                <p className="text-gray-400">
+                  Manage and secure your digital identity in one place.
+                </p>
+              </div>
 
-          <button
-            onClick={() => {
-              setModalError('');
-              setIsModalOpen(true);
-            }}
-            className="flex items-center justify-center gap-2 bg-white text-black px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg font-bold hover:bg-gray-200 transition-all active:scale-95"
-          >
-            <Plus size={20} /> New Entry
-          </button>
-        </header>
+              <button
+                onClick={() => {
+                  setModalError('');
+                  setIsModalOpen(true);
+                }}
+                className="flex items-center justify-center gap-2 bg-white text-black px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg font-bold hover:bg-gray-200 transition-all active:scale-95"
+              >
+                <Plus size={20} /> New Entry
+              </button>
+            </header>
 
-        {/* Passwords Table */}
-        <EntriesTable
-          entries={entries}
-          showPasswords={showPasswords}
-          onTogglePassword={togglePasswordVisibility}
-          onEditEntry={handleEditEntry}
-          onDeleteEntry={handleDeleteEntry}
-          isLoadingEntries={isLoadingEntries}
-          entriesError={entriesError}
-          hasDEK={!!DEK}
-          showingRange={showingRange}
-          entriesMeta={entriesMeta}
-          clampedPage={clampedPage}
-          totalPages={totalPages}
-          onPrevPage={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-          onNextPage={() =>
-            setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-          }
-        />
+            <EntriesTable
+              entries={entries}
+              showPasswords={showPasswords}
+              onTogglePassword={togglePasswordVisibility}
+              onEditEntry={handleEditEntry}
+              onDeleteEntry={handleDeleteEntry}
+              isLoadingEntries={isLoadingEntries}
+              entriesError={entriesError}
+              hasDEK={!!DEK}
+              showingRange={showingRange}
+              entriesMeta={entriesMeta}
+              clampedPage={clampedPage}
+              totalPages={totalPages}
+              onPrevPage={() =>
+                setCurrentPage((prev) => Math.max(1, prev - 1))
+              }
+              onNextPage={() =>
+                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              }
+            />
+          </>
+        )}
+
+        {/* Dead Drops Section */}
+        {activeSection === 'dead-drops' && (
+          <>
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 sm:mb-10">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold">Dead Drops</h1>
+                <p className="text-gray-400">
+                  Incoming recovery shards from other users. Accept to store in
+                  your vault.
+                </p>
+              </div>
+            </header>
+
+            <DeadDropInbox
+              shards={deadDropShards}
+              isLoading={isLoadingDeadDrops}
+              error={deadDropError}
+              onAccept={async (shard) => {
+                // Will be wired to backend later
+                console.log('Accept shard:', shard);
+              }}
+              onReject={async (shard) => {
+                // Will be wired to backend later
+                console.log('Reject shard:', shard);
+              }}
+            />
+          </>
+        )}
+
+        {/* Recovery Section (Placeholder) */}
+        {activeSection === 'recovery' && (
+          <>
+            <header className="mb-8 sm:mb-10">
+              <h1 className="text-2xl sm:text-3xl font-bold">Recovery</h1>
+              <p className="text-gray-400">
+                Manage your vault recovery shards.
+              </p>
+            </header>
+
+            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+              <KeyRound className="w-12 h-12 mb-4 text-gray-600" />
+              <p className="text-lg font-medium text-gray-400">
+                Coming Soon
+              </p>
+              <p className="text-sm text-gray-600 mt-1">
+                Recovery features will be available in a future update.
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* Settings Section (Placeholder) */}
+        {activeSection === 'settings' && (
+          <>
+            <header className="mb-8 sm:mb-10">
+              <h1 className="text-2xl sm:text-3xl font-bold">Settings</h1>
+              <p className="text-gray-400">
+                Manage your account preferences.
+              </p>
+            </header>
+
+            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+              <Settings className="w-12 h-12 mb-4 text-gray-600" />
+              <p className="text-lg font-medium text-gray-400">
+                Coming Soon
+              </p>
+              <p className="text-sm text-gray-600 mt-1">
+                Account settings will be available in a future update.
+              </p>
+            </div>
+          </>
+        )}
       </main>
 
       {/* New Entry Modal */}

@@ -74,8 +74,42 @@ export const validateRegisterBody = [
     .isBase64()
     .withMessage('Invalid rIv format.'),
   body('fAttributes').isObject().withMessage('fAttributes is required.'),
-  body('fAttributes.a1').isString().notEmpty().withMessage('a1 is required.'),
-  body('fAttributes.a2').isString().notEmpty().withMessage('a2 is required.'),
+  body('fAttributes.a1')
+    .isString()
+    .notEmpty()
+    .isLength({ min: 24, max: 24 })
+    .withMessage('a1 is required.'),
+  body('fAttributes.a2')
+    .isString()
+    .notEmpty()
+    .isLength({ min: 24, max: 24 })
+    .withMessage('a2 is required.'),
+  body('publicKey')
+    .trim()
+    .notEmpty()
+    .withMessage('publicKey is required.')
+    .isLength({ min: 392, max: 392 })
+    .withMessage('publicKey must be 392 characters long.')
+    .isBase64()
+    .withMessage('Invalid publicKey format.'),
+  body('encryptedPrivateKey')
+    .trim()
+    .notEmpty()
+    .withMessage('encryptedPrivateKey is required.')
+    .isLength({ min: 1600, max: 1700 })
+    .withMessage(
+      'encryptedPrivateKey must be between 1600 and 1700 characters long.'
+    )
+    .isBase64()
+    .withMessage('Invalid encryptedPrivateKey format.'),
+  body('rsaIv')
+    .trim()
+    .notEmpty()
+    .withMessage('rsaIv is required.')
+    .isLength({ min: 16, max: 16 })
+    .withMessage('rsaIv must be 16 characters long.')
+    .isBase64()
+    .withMessage('Invalid rsaIv format.'),
 ];
 
 export const validateLoginBody = [

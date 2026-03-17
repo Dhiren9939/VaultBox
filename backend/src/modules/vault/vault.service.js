@@ -67,7 +67,18 @@ export {
   getEntries,
   updateEntry,
   deleteEntry,
+  addShardToVault,
 };
+
+async function addShardToVault(vaultId, senderId, shardStr) {
+  const vault = await Vault.findById(vaultId);
+  if (!vault) throw new VaultNotFoundError('No vault with given vaultId.');
+
+  vault.shards.push({ senderId, shardStr });
+  await vault.save();
+
+  return vault.shards[vault.shards.length - 1];
+}
 
 async function updateEntry(vaultId, entryId, cipherText, eIv) {
   const vault = await Vault.findById(vaultId);

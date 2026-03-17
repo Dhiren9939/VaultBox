@@ -31,3 +31,15 @@ export const validateEntryIdParam = [
     .isMongoId()
     .withMessage('entryId must be a valid Mongo id.'),
 ];
+
+export const validateShardBody = [
+  body('senderId')
+    .notEmpty()
+    .withMessage('senderId is required.')
+    .isMongoId()
+    .withMessage('senderId must be a valid Mongo id.'),
+  body('shardStr')
+    .isString()
+    .notEmpty()
+    .withMessage('shardStr is required and must be a string.'),
+];

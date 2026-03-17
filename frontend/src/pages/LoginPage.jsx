@@ -11,7 +11,7 @@ import {
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { setAccessToken, setUser, setKEK, setDEK } = useAuth();
+  const { setAccessToken, setUser, setKEK, setDEK, setRKEK } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -114,14 +114,16 @@ const LoginPage = () => {
       );
       setAccessToken(accessToken);
       setUser(user);
-      const { eDEK, kSalt, kIv } = await getVaultKey();
+      const { eDEK, kSalt, kIv, rSalt } = await getVaultKey();
       const kek = await generateKEK(formData.password, base64ToBuffer(kSalt));
+      const rkek = await generateKEK(formData.password, base64ToBuffer(rSalt));
       const dek = await decryptDEK(
         kek,
         base64ToBuffer(eDEK),
         base64ToBuffer(kIv)
       );
       setKEK(kek);
+      setRKEK(rkek);
       setDEK(dek);
       navigate('/dashboard');
     } catch (error) {

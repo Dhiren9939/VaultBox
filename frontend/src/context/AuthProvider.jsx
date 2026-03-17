@@ -10,6 +10,7 @@ function AuthProvider({ children }) {
   const [accessToken, setAccessTokenState] = useState('');
   const [user, setUser] = useState(null);
   const [KEK, setKEK] = useState(null);
+  const [RKEK, setRKEK] = useState(null);
   const [DEK, setDEK] = useState(null);
 
   const setAccessToken = (token) => {
@@ -30,6 +31,7 @@ function AuthProvider({ children }) {
       setUser(null);
       setKEK(null);
       setDEK(null);
+      setRKEK(null);
     }
   }, [accessToken]);
 
@@ -38,10 +40,12 @@ function AuthProvider({ children }) {
     user,
     isLoggedIn: !!accessToken,
     KEK,
+    RKEK,
     DEK,
     setAccessToken,
     setUser,
     setKEK,
+    setRKEK,
     setDEK,
   };
 
@@ -60,4 +64,3 @@ function useAuth() {
 }
 
 export { AuthProvider, useAuth };
-

@@ -198,6 +198,7 @@ async function createVaultKey(password) {
     rSalt: bufferToBase64(rSalt),
     kIv: bufferToBase64(kIv),
     rIv: bufferToBase64(rIv),
+    bufferKEK,
   };
 }
 
@@ -228,6 +229,47 @@ function generateFAttributes() {
   return { a2: bufferToBase64(bufferA2), a1: bufferToBase64(bufferA1) };
 }
 
+/**
+ * @param {Uint8Array} KEK
+ */
+async function generateRSAKeyPair(KEK) {
+  const keyPair = await window.crypto.subtle.generateKey(
+    {
+      name: 'RSA-OAEP',
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: 'SHA-256',
+    },
+    true,
+    ['encrypt', 'decrypt']
+  );
+
+  const publicKeyBuffer = await window.crypto.subtle.exportKey(
+    'spki',
+    keyPair.publicKey
+  );
+  const privateKeyBuffer = await window.crypto.subtle.exportKey(
+    'pkcs8',
+    keyPair.privateKey
+  );
+
+  const cryptoKey = await createCryptoKey(KEK);
+  const iv = generateIV();
+  const encryptedPrivateKeyBuffer = await encrypt(
+    new Uint8Array(privateKeyBuffer),
+    cryptoKey,
+    iv
+  );
+
+  return {
+    publicKey: bufferToBase64(publicKeyBuffer),
+    encryptedPrivateKey: bufferToBase64(encryptedPrivateKeyBuffer),
+    rsaIv: bufferToBase64(iv),
+  };
+}
+
+
+
 export {
   createVaultKey,
   encryptDEK,
@@ -237,6 +279,7 @@ export {
   encryptEntry,
   decryptEntry,
   generateFAttributes,
+  generateRSAKeyPair,
 };
 
 

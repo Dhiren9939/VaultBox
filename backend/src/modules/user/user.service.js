@@ -3,6 +3,7 @@ import UserExistsError from '#src/errors/UserExistsError.js';
 import UserNotFoundError from '#src/errors/UserNotFoundError.js';
 import { Vault } from '#src/modules/vault/vault.model.js';
 import RefreshToken from '#src/modules/auth/auth.model.js';
+import { DeadDrop } from '#src/modules/dead-drops/dead-drop.model.js';
 
 function buildUserProfile(user) {
   return {
@@ -17,6 +18,21 @@ async function getUserProfile(userId) {
   const user = await User.findById(userId);
   if (!user) throw new UserNotFoundError('User not found.');
   return buildUserProfile(user);
+}
+
+async function getUserPublicProfile(email) {
+  const user = await User.findOne({ email });
+  if (!user) throw new UserNotFoundError('User not found.');
+
+  const deadDrop = await DeadDrop.findOne({ userId: user.id });
+
+  return {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    publicKey: user.publicKey,
+    deadDropId: deadDrop ? deadDrop.id : null,
+  };
 }
 
 async function updateUserProfile(userId, updates) {
@@ -55,4 +71,9 @@ async function deleteUserAccount(userId) {
   return { userId };
 }
 
-export { getUserProfile, updateUserProfile, deleteUserAccount };
+export {
+  getUserProfile,
+  getUserPublicProfile,
+  updateUserProfile,
+  deleteUserAccount,
+};

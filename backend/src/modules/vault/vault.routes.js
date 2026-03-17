@@ -5,11 +5,13 @@ import {
   handleGetEntries,
   handleUpdateEntry,
   handleDeleteEntry,
+  handleAddShard,
 } from '#src/modules/vault/vault.controller.js';
 import {
   validateEntryBody,
   validateGetEntriesQuery,
   validateEntryIdParam,
+  validateShardBody,
 } from '#src/modules/vault/vault.validation.js';
 import asyncHandler from '#src/utils/asyncHandler.js';
 import { authenticateUser } from '#src/modules/auth/auth.middleware.js';
@@ -58,6 +60,16 @@ router.delete(
     handleValidationErrors('Invalid Vault Entry Delete Request'),
   ],
   asyncHandler(handleDeleteEntry)
+);
+
+router.post(
+  '/api/vaults/shard',
+  [
+    authenticateUser,
+    validateShardBody,
+    handleValidationErrors('Invalid Shard Payload'),
+  ],
+  asyncHandler(handleAddShard)
 );
 
 export default router;

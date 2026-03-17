@@ -21,6 +21,19 @@ const vaultSchema = new mongoose.Schema({
   kIv: { type: String, required: true },
   rIv: { type: String, required: true },
   entries: { type: [entrySchema], default: [] },
+  shards: {
+    type: [
+      {
+        senderId: {
+          type: mongoose.Schema.ObjectId,
+          ref: 'User',
+          required: true,
+        },
+        shardStr: { type: String, required: true },
+      },
+    ],
+    default: [],
+  },
 });
 
 const Vault = mongoose.model('Vault', vaultSchema);

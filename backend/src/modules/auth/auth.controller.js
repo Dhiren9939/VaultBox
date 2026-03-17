@@ -31,6 +31,9 @@ async function handleRegister(req, res) {
     kSalt,
     rSalt,
     fAttributes,
+    publicKey,
+    encryptedPrivateKey,
+    rsaIv,
   } = req.body;
   try {
     const { user, accessToken, refreshToken } = await registerUser(
@@ -44,7 +47,10 @@ async function handleRegister(req, res) {
       rIv,
       kSalt,
       rSalt,
-      fAttributes
+      fAttributes,
+      publicKey,
+      encryptedPrivateKey,
+      rsaIv
     );
 
     setCookie(

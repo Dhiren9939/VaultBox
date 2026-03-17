@@ -10,6 +10,7 @@ import User from '#src/modules/user/user.model.js';
 import { Vault } from '#src/modules/vault/vault.model.js';
 import { createVault } from '#src/modules/vault/vault.service.js';
 import RefreshToken from '#src/modules/auth/auth.model.js';
+import { DeadDrop } from '#src/modules/dead-drops/dead-drop.model.js';
 
 function buildUserPayload(user, vaultId) {
   return {
@@ -57,8 +58,7 @@ async function saveRefreshToken(userId, refreshToken) {
 
   await RefreshToken.findOneAndUpdate(
     { userId },
-    { tokenHash, createdAt, expiresAt },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { tokenHash, createdAt, expiresAt }
   );
 }
 
@@ -73,7 +73,10 @@ async function registerUser(
   rIv,
   kSalt,
   rSalt,
-  fAttributes
+  fAttributes,
+  publicKey,
+  encryptedPrivateKey,
+  rsaIv
 ) {
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -89,6 +92,9 @@ async function registerUser(
       email,
       hashedPassword,
       fAttributes,
+      publicKey,
+      encryptedPrivateKey,
+      rsaIv,
     });
 
     const vault = await createVault(
@@ -102,6 +108,8 @@ async function registerUser(
     );
     const accessToken = generateAccessToken(user, vault.id);
     const refreshToken = generateRefreshToken(user.id);
+
+    await DeadDrop.create({ userId: user.id });
 
     await saveRefreshToken(user.id, refreshToken);
 

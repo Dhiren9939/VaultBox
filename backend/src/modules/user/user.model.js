@@ -16,6 +16,9 @@ const userSchema = new mongoose.Schema(
       a1: { type: String, required: true },
       a2: { type: String, required: true },
     },
+    publicKey: { type: String, required: true },
+    encryptedPrivateKey: { type: String, required: true },
+    rsaIv: { type: String, required: true },
   },
   { timestamps: true }
 );
