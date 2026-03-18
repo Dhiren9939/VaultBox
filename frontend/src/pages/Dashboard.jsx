@@ -10,13 +10,16 @@ import {
   KeyRound,
   Send,
   Search,
+  ArrowRight,
   Loader2,
   RefreshCw,
   Menu,
   X,
   User,
+  Lock,
 } from 'lucide-react';
 import {
+  getVaultKey,
   getEntries,
   postEntries,
   putEntry,
@@ -33,6 +36,13 @@ import {
   encryptEntry,
   generateShard,
   encryptShardWithRSA,
+  decryptShardWithRSA,
+  encryptString,
+  generateKEK,
+  base64ToBuffer,
+  decryptDEK,
+  decryptPrivateKey,
+  bufferToBase64,
 } from '../service/cryptoService';
 import { useAuth } from '../context/AuthProvider.jsx';
 import EntriesTable from '../components/EntriesTable.jsx';
@@ -41,23 +51,26 @@ import RecoveryTab from '../components/RecoveryTab.jsx';
 
 const Dashboard = () => {
   const {
-    DEK,
+    accessToken,
+    DEK,KEK,
     RKEK,
     user,
     setAccessToken,
     setUser,
     setKEK,
-    setRKEK,
     setDEK,
+    setRKEK,
+    rsaPrivateKey,
+    setRsaPrivateKey,
   } = useAuth();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('passwords');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
+
   const [deadDropShards, setDeadDropShards] = useState([]);
   const [isLoadingDeadDrops, setIsLoadingDeadDrops] = useState(false);
   const [deadDropError, setDeadDropError] = useState('');
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showPasswords, setShowPasswords] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -83,7 +96,6 @@ const Dashboard = () => {
     site: '',
   });
 
-  // --- Send Shard Modal state ---
   const [isSendShardOpen, setIsSendShardOpen] = useState(false);
   const [sendShardEmail, setSendShardEmail] = useState('');
   const [sendShardRecipient, setSendShardRecipient] = useState(null);
@@ -92,7 +104,65 @@ const Dashboard = () => {
   const [isSendingShard, setIsSendingShard] = useState(false);
   const [sendShardSuccess, setSendShardSuccess] = useState('');
 
-  // --- Dead Drop fetch ---
+  // Vault Unlock State
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [unlockError, setUnlockError] = useState('');
+
+  const handleUnlockVault = async (e) => {
+    e.preventDefault();
+    if (!unlockPassword.trim()) return;
+
+    setIsUnlocking(true);
+    setUnlockError('');
+
+    try {
+      // 1. Get vault keys
+      const { eDEK, reDEK, kSalt, rSalt, kIv, rIv } = await getVaultKey();
+
+      // 2. Derive KEK and RKEK
+      const kek = await generateKEK(unlockPassword, base64ToBuffer(kSalt));
+      const rkek = await generateKEK(unlockPassword, base64ToBuffer(rSalt));
+
+      // 3. Decrypt Master DEK
+      const dek = await decryptDEK(
+        kek,
+        base64ToBuffer(eDEK),
+        base64ToBuffer(kIv)
+      );
+
+      // 4. Decrypt RSA Private Key if it exists
+      if (user.encryptedPrivateKey && user.rsaIv) {
+        try {
+          const rsaPrivKey = await decryptPrivateKey(
+            user.encryptedPrivateKey,
+            unlockPassword,
+            kSalt, // Re-deriving KEK for RSA Storage
+            user.rsaIv
+          );
+          setRsaPrivateKey(rsaPrivKey);
+        } catch (rsaError) {
+          // Keep vault accessible even if RSA key decryption fails.
+          // Dead-drop/recovery actions can be re-established after key rotation.
+          console.warn('RSA private key decryption failed during unlock.', rsaError);
+          setRsaPrivateKey(null);
+        }
+      }
+
+      // 5. Set in context
+      setKEK(kek);
+      setRKEK(rkek);
+      setDEK(dek);
+
+      setUnlockPassword('');
+    } catch (err) {
+      setUnlockError('Invalid password or failed to unlock vault.');
+      console.error(err);
+    } finally {
+      setIsUnlocking(false);
+    }
+  };
+
   const fetchDeadDrops = useCallback(async () => {
     setIsLoadingDeadDrops(true);
     setDeadDropError('');
@@ -320,9 +390,7 @@ const Dashboard = () => {
       }
       setSendShardRecipient(data.user);
     } catch (err) {
-      setSendShardError(
-        err?.response?.data?.message || 'User not found.'
-      );
+      setSendShardError(err?.response?.data?.message || 'User not found.');
     } finally {
       setIsLookingUp(false);
     }
@@ -374,10 +442,24 @@ const Dashboard = () => {
 
   // --- Accept / Reject shard handlers ---
   const handleAcceptShard = async (shard) => {
-    const senderId = shard.senderId?._id || shard.senderId;
-    await acceptShardToVault(senderId, shard.shardStr);
-    await removeDeadDropShard(shard._id);
-    setDeadDropShards((prev) => prev.filter((s) => s._id !== shard._id));
+    try {
+      const senderId = shard.senderId?._id || shard.senderId;
+
+      // 1. Decrypt RSA encoded shard
+      const rawShard = await decryptShardWithRSA(rsaPrivateKey, shard.shardStr);
+
+      // 2. Re-encrypt with user's KEK
+      const { encryptedString, iv } = await encryptString(KEK, rawShard);
+
+      // 3. Store in Vault
+      await acceptShardToVault(senderId, encryptedString, bufferToBase64(iv));
+
+      // 4. Cleanup
+      await removeDeadDropShard(shard._id);
+      setDeadDropShards((prev) => prev.filter((s) => s._id !== shard._id));
+    } catch (err) {
+      console.error('Accept Shard Error:', err);
+    }
   };
 
   const handleRejectShard = async (shard) => {
@@ -396,10 +478,17 @@ const Dashboard = () => {
           { id: 'passwords', label: 'All Passwords', icon: LayoutDashboard },
           { id: 'dead-drops', label: 'Dead Drops', icon: Inbox },
           { id: 'recovery', label: 'Recovery Center', icon: KeyRound },
-          { id: 'settings', label: 'Settings', icon: Settings, isSeparator: true },
+          {
+            id: 'settings',
+            label: 'Settings',
+            icon: Settings,
+            isSeparator: true,
+          },
         ].map((item) => (
           <React.Fragment key={item.id}>
-            {item.isSeparator && <div className="!mt-4 pt-4 border-t border-gray-800" />}
+            {item.isSeparator && (
+              <div className="!mt-4 pt-4 border-t border-gray-800" />
+            )}
             <button
               onClick={() => {
                 setActiveSection(item.id);
@@ -435,13 +524,15 @@ const Dashboard = () => {
 
       {/* Sidebar - Mobile Overlay */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-40 transition-opacity animate-in fade-in"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
-      <aside className={`lg:hidden fixed inset-y-0 left-0 w-72 bg-gray-950 border-r border-gray-900 z-50 p-6 transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <button 
+      <aside
+        className={`lg:hidden fixed inset-y-0 left-0 w-72 bg-gray-950 border-r border-gray-900 z-50 p-6 transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <button
           onClick={() => setIsMobileMenuOpen(false)}
           className="absolute top-6 right-6 p-2 text-gray-500 hover:text-white"
         >
@@ -454,8 +545,8 @@ const Dashboard = () => {
       <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
         {/* Top Header - Mobile */}
         <header className="lg:hidden sticky top-0 z-30 bg-black/60 backdrop-blur-md border-b border-gray-900/80 p-4 flex items-center justify-between">
-           <div className="flex gap-4 items-center">
-            <button 
+          <div className="flex gap-4 items-center">
+            <button
               onClick={() => setIsMobileMenuOpen(true)}
               className="p-2 text-gray-400 hover:text-white bg-gray-900 rounded-lg"
             >
@@ -465,11 +556,8 @@ const Dashboard = () => {
               <ShieldCheck className="w-6 h-6" /> VaultBox
             </div>
           </div>
-          <button 
-             onClick={handleLogout}
-             className="text-gray-500"
-          >
-             <LogOut size={20} />
+          <button onClick={handleLogout} className="text-gray-500">
+            <LogOut size={20} />
           </button>
         </header>
 
@@ -479,7 +567,9 @@ const Dashboard = () => {
             <>
               <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight">My Vault</h1>
+                  <h1 className="text-3xl font-bold tracking-tight">
+                    My Vault
+                  </h1>
                   <p className="text-gray-400 mt-1">
                     Manage and secure your digital credentials.
                   </p>
@@ -492,7 +582,8 @@ const Dashboard = () => {
                   }}
                   className="flex items-center justify-center gap-2 bg-white text-black px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all active:scale-95 shadow-lg shadow-white/5"
                 >
-                  <Plus size={20} /> <span className="sm:inline">New Entry</span>
+                  <Plus size={20} />{' '}
+                  <span className="sm:inline">New Entry</span>
                 </button>
               </header>
 
@@ -524,7 +615,9 @@ const Dashboard = () => {
             <>
               <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight">Dead Drops</h1>
+                  <h1 className="text-3xl font-bold tracking-tight">
+                    Dead Drops
+                  </h1>
                   <p className="text-gray-400 mt-1">
                     Manage incoming recovery shards from trusted peers.
                   </p>
@@ -537,7 +630,10 @@ const Dashboard = () => {
                     className="flex items-center justify-center p-3 bg-gray-900 border border-gray-800 rounded-xl text-gray-400 hover:text-white transition-all active:scale-95"
                     title="Refresh"
                   >
-                    <RefreshCw size={20} className={isLoadingDeadDrops ? 'animate-spin' : ''} />
+                    <RefreshCw
+                      size={20}
+                      className={isLoadingDeadDrops ? 'animate-spin' : ''}
+                    />
                   </button>
                   <button
                     onClick={() => {
@@ -547,7 +643,8 @@ const Dashboard = () => {
                     }}
                     className="flex items-center justify-center gap-2 bg-white text-black px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all active:scale-95 shadow-lg shadow-white/5"
                   >
-                    <Send size={18} /> <span className="sm:inline">Send Shard</span>
+                    <Send size={18} />{' '}
+                    <span className="sm:inline">Send Shard</span>
                   </button>
                 </div>
               </header>
@@ -563,9 +660,7 @@ const Dashboard = () => {
           )}
 
           {/* Recovery Section */}
-          {activeSection === 'recovery' && (
-            <RecoveryTab user={user} />
-          )}
+          {activeSection === 'recovery' && <RecoveryTab user={user} />}
 
           {/* Settings Section */}
           {activeSection === 'settings' && (
@@ -583,7 +678,8 @@ const Dashboard = () => {
                 </div>
                 <h2 className="text-xl font-bold text-gray-200">Coming Soon</h2>
                 <p className="text-gray-500 mt-2 max-w-sm">
-                  Account settings and customization options will be available in a future version of VaultBox.
+                  Account settings and customization options will be available
+                  in a future version of VaultBox.
                 </p>
               </div>
             </>
@@ -593,14 +689,14 @@ const Dashboard = () => {
 
       {/* Modals and Overlays */}
       {/* (Keep modals mostly the same but ensure they are w-full max-w-md and p-4 on mobile) */}
-      
+
       {/* New Entry Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-60 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-gray-950 border border-gray-900 w-full max-w-lg p-6 sm:p-10 rounded-3xl shadow-2xl relative my-auto animate-in zoom-in-95 duration-200">
-            <button 
-               onClick={handleCloseModal}
-               className="absolute top-6 right-6 text-gray-500 hover:text-white"
+            <button
+              onClick={handleCloseModal}
+              className="absolute top-6 right-6 text-gray-500 hover:text-white"
             >
               <X size={20} />
             </button>
@@ -615,7 +711,9 @@ const Dashboard = () => {
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-2 text-left">
-                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Title</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">
+                    Title
+                  </label>
                   <input
                     type="text"
                     name="title"
@@ -626,7 +724,9 @@ const Dashboard = () => {
                   />
                 </div>
                 <div className="space-y-2 text-left">
-                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Site</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">
+                    Site
+                  </label>
                   <input
                     type="text"
                     name="site"
@@ -638,7 +738,9 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="space-y-2 text-left">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Identifier</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">
+                  Identifier
+                </label>
                 <input
                   type="text"
                   name="identifier"
@@ -649,7 +751,9 @@ const Dashboard = () => {
                 />
               </div>
               <div className="space-y-2 text-left">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Password</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">
+                  Password
+                </label>
                 <input
                   type="password"
                   name="password"
@@ -660,7 +764,9 @@ const Dashboard = () => {
                 />
               </div>
               <div className="space-y-2 text-left">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Additional Note</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">
+                  Additional Note
+                </label>
                 <textarea
                   name="note"
                   value={formData.note}
@@ -683,7 +789,13 @@ const Dashboard = () => {
                   disabled={isSavingEntry || !DEK}
                   className="flex-1 px-6 py-4 bg-white text-black font-black rounded-2xl hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
                 >
-                  {!DEK ? 'LOCKED' : isSavingEntry ? 'SAVING...' : editingEntryId ? 'UPDATE' : 'CREATE ENTRY'}
+                  {!DEK
+                    ? 'LOCKED'
+                    : isSavingEntry
+                      ? 'SAVING...'
+                      : editingEntryId
+                        ? 'UPDATE'
+                        : 'CREATE ENTRY'}
                 </button>
               </div>
             </div>
@@ -695,15 +807,17 @@ const Dashboard = () => {
       {isSendShardOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-60 flex items-center justify-center p-4">
           <div className="bg-gray-950 border border-gray-900 w-full max-w-lg p-6 sm:p-10 rounded-3xl shadow-2xl relative animate-in slide-in-from-bottom-4 duration-300">
-            <button 
-               onClick={handleCloseSendShard}
-               className="absolute top-6 right-6 text-gray-500 hover:text-white"
+            <button
+              onClick={handleCloseSendShard}
+              className="absolute top-6 right-6 text-gray-500 hover:text-white"
             >
               <X size={20} />
             </button>
             <h2 className="text-2xl font-bold mb-2">Transfer Recovery Shard</h2>
-            <p className="text-gray-500 text-sm mb-8">Send a cryptographic piece of your key to a trusted user.</p>
-            
+            <p className="text-gray-500 text-sm mb-8">
+              Send a cryptographic piece of your key to a trusted user.
+            </p>
+
             <div className="space-y-6">
               {sendShardError && (
                 <div className="px-4 py-3 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 text-sm">
@@ -737,7 +851,11 @@ const Dashboard = () => {
                     disabled={isLookingUp}
                     className="px-6 py-3.5 bg-white text-black font-bold rounded-xl hover:bg-gray-100 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center min-w-[120px]"
                   >
-                    {isLookingUp ? <Loader2 size={20} className="animate-spin" /> : 'Search'}
+                    {isLookingUp ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                      'Search'
+                    )}
                   </button>
                 </div>
 
@@ -748,7 +866,8 @@ const Dashboard = () => {
                     </div>
                     <div className="min-w-0">
                       <p className="font-bold text-white leading-tight">
-                        {sendShardRecipient.firstName} {sendShardRecipient.lastName}
+                        {sendShardRecipient.firstName}{' '}
+                        {sendShardRecipient.lastName}
                       </p>
                       <p className="text-xs text-emerald-400 font-medium mt-1 uppercase tracking-widest flex items-center gap-1.5">
                         <ShieldCheck size={12} /> Public Key Found
@@ -772,11 +891,95 @@ const Dashboard = () => {
                   disabled={isSendingShard || !sendShardRecipient}
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-white text-black font-black rounded-2xl hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
                 >
-                  {isSendingShard ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                  {isSendingShard ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <Send size={18} />
+                  )}
                   {isSendingShard ? 'TRANSFERRING...' : 'TRANSFER SHARD'}
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Vault Unlock Overlay */}
+      {!DEK && accessToken && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+          <div className="w-full max-w-md space-y-8 animate-in zoom-in-95 duration-300">
+            <div className="text-center space-y-4">
+              <div className="mx-auto w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+                <ShieldCheck className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                Unlock Vault
+              </h1>
+              <p className="text-gray-400">
+                {user
+                  ? 'Enter your Master Password to decrypt your vault and keys.'
+                  : 'Preparing your secure session...'}
+              </p>
+            </div>
+
+            <form onSubmit={handleUnlockVault} className="space-y-5">
+              {unlockError && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
+                  {unlockError}
+                </div>
+              )}
+
+              <div className="space-y-1.5 text-left">
+                <label className="text-sm font-medium text-gray-400 ml-1">
+                  Master Password
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
+                    <Lock className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="password"
+                    value={unlockPassword}
+                    onChange={(e) => setUnlockPassword(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl outline-none transition-all placeholder-gray-600 text-white focus:ring-2 focus:ring-white/20 focus:border-white/20"
+                    placeholder="••••••••"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isUnlocking || !user}
+                className="w-full py-4 px-4 bg-white text-black font-black rounded-xl hover:bg-gray-200 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-xl shadow-white/5"
+              >
+                {isUnlocking ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    UNLOCKING...
+                  </>
+                ) : !user ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    LOADING PROFILE...
+                  </>
+                ) : (
+                  <>
+                    UNLOCK VAULT
+                    <ArrowRight className="h-5 w-5" />
+                  </>
+                )}
+              </button>
+
+              {user && (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full py-3 text-sm text-gray-500 hover:text-white transition-colors"
+                >
+                  Log out of {user.email}
+                </button>
+              )}
+            </form>
           </div>
         </div>
       )}

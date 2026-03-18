@@ -5,19 +5,26 @@ import { Vault } from '#src/modules/vault/vault.model.js';
 import RefreshToken from '#src/modules/auth/auth.model.js';
 import { DeadDrop } from '#src/modules/dead-drops/dead-drop.model.js';
 
-function buildUserProfile(user) {
+function buildUserProfile(user, vaultId) {
   return {
     id: user.id,
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
+    vaultId,
+    fAttributes: user.fAttributes || null,
+    publicKey: user.publicKey,
+    encryptedPrivateKey: user.encryptedPrivateKey,
+    rsaIv: user.rsaIv,
   };
 }
 
 async function getUserProfile(userId) {
   const user = await User.findById(userId);
   if (!user) throw new UserNotFoundError('User not found.');
-  return buildUserProfile(user);
+
+  const vault = await Vault.findOne({ userId });
+  return buildUserProfile(user, vault ? vault._id : null);
 }
 
 async function getUserPublicProfile(email) {
@@ -55,7 +62,8 @@ async function updateUserProfile(userId, updates) {
 
   await user.save();
 
-  return buildUserProfile(user);
+  const vault = await Vault.findOne({ userId });
+  return buildUserProfile(user, vault ? vault._id : null);
 }
 
 async function deleteUserAccount(userId) {

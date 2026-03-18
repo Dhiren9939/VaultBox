@@ -16,11 +16,20 @@ import {
   getMyTrustees,
   getMyTrustors,
   revokeTrustee,
+  getIncomingRequests,
+  approveRecoveryRequest,
 } from '../service/api';
+import { useAuth } from '../context/AuthProvider';
+import { 
+  decryptString, 
+  encryptShardWithRSA 
+} from '../service/cryptoService';
 
 const RecoveryTab = ({ user }) => {
+  const { KEK } = useAuth();
   const [trustees, setTrustees] = useState([]);
-  const [trustors, setTrustors] = useState([]);
+  const [trustors, setTrustors] = useState([]); // Restore buddies list
+  const [recoveryRequests, setRecoveryRequests] = useState([]); // Keep active requests as separate list
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,12 +37,14 @@ const RecoveryTab = ({ user }) => {
     setIsLoading(true);
     setError('');
     try {
-      const [trusteesData, trustorsData] = await Promise.all([
+      const [trusteesData, trustorsData, requestsData] = await Promise.all([
         getMyTrustees(),
-        getMyTrustors(),
+        getMyTrustors(), // Full buddies
+        getIncomingRequests(), // High-priority recovery alerts
       ]);
       setTrustees(trusteesData || []);
       setTrustors(trustorsData || []);
+      setRecoveryRequests(requestsData || []);
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to fetch recovery data.');
     } finally {
@@ -57,6 +68,42 @@ const RecoveryTab = ({ user }) => {
       fetchData();
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to revoke trustee.');
+    }
+  };
+
+  const handleApprove = async (request) => {
+    if (request?.hasContributed) {
+      setError("You've already sent your shard for this recovery session.");
+      return;
+    }
+
+    if (!KEK) {
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      // 1. Decrypt shard with our KEK
+      // Shard is stored in our vault as KEK-encrypted plain string.
+      const shardString = await decryptString(KEK, request.shardStr, request.shardIv);
+
+      // 2. Encrypt with friend's temporary RSA Public Key
+      const encryptedForFriend = await encryptShardWithRSA(request.ephemeralPublicKey, shardString);
+
+      // 3. Send to recovery session
+      await approveRecoveryRequest(request.recoveryId, encryptedForFriend);
+      
+      fetchData();
+    } catch (err) {
+      console.error('Approval error:', err);
+      const message = err?.response?.data?.message || err.message;
+      if (message?.includes('already contributed')) {
+        setError("You've already sent your shard for this recovery session.");
+        fetchData();
+      } else {
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -225,38 +272,53 @@ const RecoveryTab = ({ user }) => {
               </div>
             ) : (
               <div className="divide-y divide-gray-900">
-                {trustors.map((t) => (
-                  <div
-                    key={t._id}
-                    className="flex items-center justify-between p-5 hover:bg-white/2 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      {/* Consistent Avatar with Dead Drops */}
-                      <div className="w-9 h-9 rounded-full bg-linear-to-br from-blue-600 to-indigo-500 flex items-center justify-center shrink-0 border border-white/5 shadow-lg">
-                        <User size={16} className="text-white" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-100">
-                          {t.owner?.firstName} {t.owner?.lastName}
-                        </p>
-                        <p className="text-xs text-gray-500 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] sm:max-w-none">
-                          {t.owner?.email}
-                        </p>
-                      </div>
-                    </div>
-                    <div>
-                      {t.recoveryRequested ? (
-                        <div className="flex items-center gap-2 text-[10px] uppercase font-black text-red-500 bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/30 shadow-[0_0_15px_-5px_rgba(239,68,68,0.5)] animate-pulse">
-                          RECOVERY REQUESTED
+                {trustors.map((t) => {
+                  // Check if this friend has an active recovery request session
+                  const activeRequest = recoveryRequests.find(r => r.owner?._id === (t.owner?._id || t.owner));
+                  
+                  return (
+                    <div
+                      key={t._id}
+                      className="flex items-center justify-between p-5 hover:bg-white/2 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white/5 shadow-lg ${
+                            activeRequest ? 'bg-linear-to-br from-red-600 to-orange-500 animate-pulse' : 'bg-linear-to-br from-blue-600 to-indigo-500'
+                          }`}>
+                          <User size={16} className="text-white" />
                         </div>
+                        <div>
+                          <p className="font-semibold text-gray-100">
+                            {t.owner?.firstName} {t.owner?.lastName}
+                          </p>
+                          <p className={`text-xs ${activeRequest ? 'text-red-400 font-bold animate-pulse' : 'text-gray-500'}`}>
+                            {activeRequest ? 'RECOVERY REQUESTED' : t.owner?.email}
+                          </p>
+                        </div>
+                      </div>
+  
+                      {activeRequest ? (
+                        activeRequest.hasContributed ? (
+                          <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                            <CheckCircle2 size={12} /> Already Sent
+                          </div>
+                        ) : (
+                        <button
+                          onClick={() => handleApprove(activeRequest)}
+                          disabled={isLoading}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {isLoading ? 'Sending...' : 'Approve & Send'}
+                        </button>
+                        )
                       ) : (
                         <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-gray-500 bg-gray-800/50 px-2.5 py-1 rounded-full border border-gray-700">
                           Active
                         </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

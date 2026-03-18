@@ -20,6 +20,9 @@ function buildUserPayload(user, vaultId) {
     lastName: user.lastName,
     vaultId,
     fAttributes: user.fAttributes || null,
+    publicKey: user.publicKey,
+    encryptedPrivateKey: user.encryptedPrivateKey,
+    rsaIv: user.rsaIv,
   };
 }
 

@@ -143,6 +143,11 @@ async function getUserByEmail(email) {
   return response.data.details;
 }
 
+async function getUserProfile() {
+  const response = await api.get('/api/users');
+  return response.data.details;
+}
+
 async function getDeadDrops() {
   const response = await api.get('/api/dead-drops');
   return response.data.details;
@@ -160,8 +165,40 @@ async function removeDeadDropShard(shardId) {
   return response.data.details;
 }
 
-async function acceptShardToVault(senderId, shardStr) {
-  const response = await api.post('/api/vaults/shard', { senderId, shardStr });
+async function acceptShardToVault(senderId, shardStr, shardIv) {
+  const response = await api.post('/api/vaults/shard', {
+    senderId,
+    shardStr,
+    shardIv,
+  });
+  return response.data.details;
+}
+
+// Full Recovery Flow APIs
+async function startRecovery(body) {
+  const response = await api.post('/api/recovery/start', body);
+  return response.data.details;
+}
+
+async function getRecoveryShards(recoveryId) {
+  const response = await api.get(`/api/recovery/shards/${recoveryId}`);
+  return response.data.details;
+}
+
+async function approveRecoveryRequest(recoveryId, encryptedShardStr) {
+  const response = await api.post(`/api/recovery/approve/${recoveryId}`, {
+    encryptedShardStr,
+  });
+  return response.data.details;
+}
+
+async function finalizeRecovery(body) {
+  const response = await api.post('/api/recovery/complete', body);
+  return response.data.details;
+}
+
+async function cancelRecovery(body) {
+  const response = await api.post('/api/recovery/cancel', body);
   return response.data.details;
 }
 
@@ -182,10 +219,16 @@ export {
   initiateRecovery,
   getIncomingRequests,
   getUserByEmail,
+  getUserProfile,
   getDeadDrops,
   postShardToDeadDrop,
   removeDeadDropShard,
   acceptShardToVault,
+  startRecovery,
+  getRecoveryShards,
+  approveRecoveryRequest,
+  finalizeRecovery,
+  cancelRecovery,
   setAccessTokenProvider,
   setAccessTokenUpdater,
 };

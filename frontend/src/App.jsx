@@ -4,7 +4,10 @@ import LandingPage from './pages/LandingPage';
 import SignUpPage from './pages/SignUpPage';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
+import RecoveryPage from './pages/RecoveryPage';
 import { AuthProvider, useAuth } from './context/AuthProvider.jsx';
+
+import PropTypes from 'prop-types';
 
 /**
  * Redirects to login when the user is not authenticated.
@@ -19,6 +22,26 @@ function ProtectedRoute({ children }) {
 }
 
 /**
+ * Redirects authenticated users away from auth-only pages.
+ * @param {{ children: React.ReactNode }} props
+ */
+function PublicRoute({ children }) {
+  const { isLoggedIn } = useAuth();
+  if (isLoggedIn) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+}
+
+ProtectedRoute.propTypes = {
+  children: PropTypes.node.isRequired,
+};
+
+PublicRoute.propTypes = {
+  children: PropTypes.node.isRequired,
+};
+
+/**
  * Application root with routing and auth context.
  */
 function App() {
@@ -26,9 +49,31 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/signup" element={<SignUpPage />} />
-          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/"
+            element={
+              <PublicRoute>
+                <LandingPage />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              <PublicRoute>
+                <SignUpPage />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <LoginPage />
+              </PublicRoute>
+            }
+          />
+          <Route path="/forgot-password" element={<RecoveryPage />} />
           <Route
             path="/dashboard"
             element={

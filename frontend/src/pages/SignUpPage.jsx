@@ -2,12 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { User, Mail, ArrowRight, Lock, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import zxcvbn from 'zxcvbn';
-import { getVaultKey, registerUser } from '../service/api';
+import { registerUser } from '../service/api';
 import {
   base64ToBuffer,
   createVaultKey,
-  decryptDEK,
-  generateKEK,
   generateFAttributes,
   generateRSAKeyPair,
 } from '../service/cryptoService';
@@ -15,7 +13,14 @@ import { useAuth } from '../context/AuthProvider.jsx';
 
 const SignUpPage = () => {
   const navigate = useNavigate();
-  const { setAccessToken, setUser, setKEK, setDEK, setRKEK } = useAuth();
+  const {
+    setAccessToken,
+    setUser,
+    setKEK,
+    setDEK,
+    setRKEK,
+    setRsaPrivateKey,
+  } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -264,9 +269,12 @@ const SignUpPage = () => {
         bufferDEK,
       } = await vaultKeyPromise;
       const fAttributes = generateFAttributes();
-      const { publicKey, encryptedPrivateKey, rsaIv } = await generateRSAKeyPair(
-        bufferKEK
-      );
+      const {
+        publicKey,
+        encryptedPrivateKey,
+        rsaIv,
+        decryptedPrivateKey,
+      } = await generateRSAKeyPair(bufferKEK);
       const { user, accessToken } = await registerUser({
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -288,6 +296,7 @@ const SignUpPage = () => {
       setKEK(bufferKEK);
       setRKEK(bufferRKEK);
       setDEK(bufferDEK);
+      setRsaPrivateKey(decryptedPrivateKey);
       navigate('/dashboard');
     } catch (error) {
       console.log(error);

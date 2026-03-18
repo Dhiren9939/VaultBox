@@ -30,6 +30,7 @@ const vaultSchema = new mongoose.Schema({
           required: true,
         },
         shardStr: { type: String, required: true },
+        shardIv: { type: String, required: true },
         recoveryRequested: { type: Boolean, default: false },
       },
     ],

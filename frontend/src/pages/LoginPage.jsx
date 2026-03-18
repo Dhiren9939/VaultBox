@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getVaultKey, loginUser } from '../service/api';
+import { loginUser } from '../service/api';
 import { useAuth } from '../context/AuthProvider.jsx';
-import {
-  base64ToBuffer,
-  decryptDEK,
-  generateKEK,
-} from '../service/cryptoService';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { setAccessToken, setUser, setKEK, setDEK, setRKEK } = useAuth();
+  const {
+    setAccessToken,
+    setUser,
+    setKEK,
+    setDEK,
+    setRKEK,
+    setRsaPrivateKey,
+  } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -114,17 +116,7 @@ const LoginPage = () => {
       );
       setAccessToken(accessToken);
       setUser(user);
-      const { eDEK, kSalt, kIv, rSalt } = await getVaultKey();
-      const kek = await generateKEK(formData.password, base64ToBuffer(kSalt));
-      const rkek = await generateKEK(formData.password, base64ToBuffer(rSalt));
-      const dek = await decryptDEK(
-        kek,
-        base64ToBuffer(eDEK),
-        base64ToBuffer(kIv)
-      );
-      setKEK(kek);
-      setRKEK(rkek);
-      setDEK(dek);
+
       navigate('/dashboard');
     } catch (error) {
       const message = error?.response?.data?.message || 'Something went wrong.';

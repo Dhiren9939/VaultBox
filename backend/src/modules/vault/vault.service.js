@@ -70,11 +70,11 @@ export {
   addShardToVault,
 };
 
-async function addShardToVault(vaultId, senderId, shardStr) {
+async function addShardToVault(vaultId, senderId, shardStr, shardIv) {
   const vault = await Vault.findById(vaultId);
   if (!vault) throw new VaultNotFoundError('No vault with given vaultId.');
 
-  vault.shards.push({ senderId, shardStr });
+  vault.shards.push({ senderId, shardStr, shardIv });
   await vault.save();
 
   return vault.shards[vault.shards.length - 1];

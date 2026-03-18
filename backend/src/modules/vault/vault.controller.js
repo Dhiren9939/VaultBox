@@ -91,10 +91,10 @@ async function handleDeleteEntry(req, res) {
 
 async function handleAddShard(req, res) {
   try {
-    const { senderId, shardStr } = req.body;
+    const { senderId, shardStr, shardIv } = req.body;
     const vaultId = req.user.vaultId;
 
-    const shard = await addShardToVault(vaultId, senderId, shardStr);
+    const shard = await addShardToVault(vaultId, senderId, shardStr, shardIv);
 
     return SuccessResponse(res, { shard }, 'Shard added to vault.', 201);
   } catch (error) {

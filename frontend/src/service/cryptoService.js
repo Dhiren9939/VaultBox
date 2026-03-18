@@ -141,6 +141,17 @@ async function encryptString(KEK, string) {
   return { encryptedString, iv };
 }
 
+async function decryptString(KEK, cipherText, eIv) {
+  const cryptoKey = await createCryptoKey(KEK);
+  const decryptedBuffer = await decrypt(
+    base64ToBuffer(cipherText),
+    cryptoKey,
+    base64ToBuffer(eIv)
+  );
+
+  return bufferToString(decryptedBuffer);
+}
+
 /**
  * @param {Uint8Array} DEK
  * @param {Record<string, any>} data
@@ -267,6 +278,7 @@ async function generateRSAKeyPair(KEK) {
     publicKey: bufferToBase64(publicKeyBuffer),
     encryptedPrivateKey: bufferToBase64(encryptedPrivateKeyBuffer),
     rsaIv: bufferToBase64(iv),
+    decryptedPrivateKey: new Uint8Array(privateKeyBuffer),
   };
 }
 
@@ -337,6 +349,139 @@ async function encryptShardWithRSA(publicKeyBase64, shardString) {
   return bufferToBase64(encryptedBuffer);
 }
 
+async function decryptPrivateKey(encryptedPrivateKey, password, salt, iv) {
+  const kek = await generateKEK(password, base64ToBuffer(salt));
+  const cryptoKey = await createCryptoKey(kek);
+  const decryptedBuffer = await decrypt(
+    base64ToBuffer(encryptedPrivateKey),
+    cryptoKey,
+    base64ToBuffer(iv)
+  );
+  return new Uint8Array(decryptedBuffer);
+}
+
+// Alias for clarity in recovery flow
+const decryptEphemeralPrivateKey = decryptPrivateKey;
+
+async function decryptShardWithRSA(privateKeyBuffer, encryptedShardBase64) {
+  const privateKey = await window.crypto.subtle.importKey(
+    'pkcs8',
+    privateKeyBuffer,
+    {
+      name: 'RSA-OAEP',
+      hash: 'SHA-256',
+    },
+    false,
+    ['decrypt']
+  );
+
+  const decryptedBuffer = await window.crypto.subtle.decrypt(
+    { name: 'RSA-OAEP' },
+    privateKey,
+    base64ToBuffer(encryptedShardBase64)
+  );
+
+  return bufferToString(decryptedBuffer);
+}
+
+/**
+ * Reconstructs the RKEK from exactly k shards
+ * points: array of {x: BigInt, y: BigInt[]}
+ */
+function reconstructRKEK(points) {
+  if (!Array.isArray(points) || points.length < 3) {
+    throw new Error('At least 3 points are required to reconstruct RKEK.');
+  }
+
+  const selectedPoints = points.slice(0, 3);
+  const segmentLengths = [11, 11, 10];
+  const segments = [];
+
+  for (let segmentIndex = 0; segmentIndex < 3; segmentIndex++) {
+    const segmentPoints = selectedPoints.map((point) => {
+      if (!Array.isArray(point.y) || point.y.length < 3) {
+        throw new Error('Each point must include 3 y-values.');
+      }
+
+      return { x: point.x, y: point.y[segmentIndex] };
+    });
+
+    const yIntercept = lagrangeInterpolate(segmentPoints, P);
+    segments.push(
+      padBuffer(bigIntToBuffer(yIntercept), segmentLengths[segmentIndex])
+    );
+  }
+
+  return new Uint8Array([...segments[0], ...segments[1], ...segments[2]]);
+}
+
+function padBuffer(buffer, totalLength) {
+  if (buffer.length === totalLength) return buffer;
+  const newBuf = new Uint8Array(totalLength);
+  newBuf.set(buffer, totalLength - buffer.length);
+  return newBuf;
+}
+
+function modPow(base, exponent, m) {
+  let res = 1n;
+  base = base % m;
+  while (exponent > 0n) {
+    if (exponent % 2n === 1n) res = (res * base) % m;
+    base = (base * base) % m;
+    exponent = exponent / 2n;
+  }
+  return res;
+}
+
+function mod(n, p) {
+  return ((n % p) + p) % p;
+}
+
+function modInverse(a, p) {
+  let t = 0n;
+  let newT = 1n;
+  let r = p;
+  let newR = mod(a, p);
+
+  while (newR !== 0n) {
+    const q = r / newR;
+    const nextT = t - q * newT;
+    t = newT;
+    newT = nextT;
+
+    const nextR = r - q * newR;
+    r = newR;
+    newR = nextR;
+  }
+
+  if (r !== 1n) {
+    throw new Error('Modular inverse does not exist.');
+  }
+
+  return mod(t, p);
+}
+
+function lagrangeInterpolate(points, p) {
+  let intercept = 0n;
+
+  for (let i = 0; i < points.length; i++) {
+    let numerator = 1n;
+    let denominator = 1n;
+
+    for (let j = 0; j < points.length; j++) {
+      if (i === j) continue;
+      numerator = mod(numerator * mod(-points[j].x, p), p);
+      denominator = mod(denominator * mod(points[i].x - points[j].x, p), p);
+    }
+
+    const liAtZero = mod(numerator * modInverse(denominator, p), p);
+    intercept = mod(intercept + mod(points[i].y * liAtZero, p), p);
+  }
+
+  return intercept;
+}
+
+
 export {
   createVaultKey,
   encryptDEK,
@@ -350,4 +495,10 @@ export {
   generateRSAKeyPair,
   generateShard,
   encryptShardWithRSA,
+  decryptPrivateKey,
+  decryptEphemeralPrivateKey,
+  decryptShardWithRSA,
+  reconstructRKEK,
+  encryptString,
+  decryptString,
 };
