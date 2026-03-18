@@ -1,5 +1,9 @@
 # VaultBox
 
+<p align="center">
+  <img src="frontend/public/favicon.png" alt="VaultBox Logo" width="120" />
+</p>
+
 [![Status](https://img.shields.io/badge/status-active-success)](https://github.com)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
