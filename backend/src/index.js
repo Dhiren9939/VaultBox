@@ -8,6 +8,7 @@ import authRoutes from '#src/modules/auth/auth.routes.js';
 import vaultRoutes from '#src/modules/vault/vault.routes.js';
 import userRoutes from '#src/modules/user/user.routes.js';
 import deadDropRoutes from '#src/modules/dead-drops/dead-drop.routes.js';
+import recoveryRoutes from '#src/modules/recovery/recovery.routes.js';
 import notFound from '#src/middleware/notFoundHandler.js';
 import centralErrorHandler from '#src/middleware/centralErrorHandler.js';
 import logger from '#src/utils/logger.js';
@@ -28,6 +29,7 @@ app.use(authRoutes);
 app.use(vaultRoutes);
 app.use(userRoutes);
 app.use(deadDropRoutes);
+app.use(recoveryRoutes);
 
 app.use(notFound);
 app.use(centralErrorHandler);

@@ -102,6 +102,42 @@ async function deleteEntry(entryId) {
   return response.data.details;
 }
 
+// Recovery API
+async function getMyTrustees() {
+  const response = await api.get('/api/recovery/trustees');
+  return response.data.details;
+}
+
+async function getMyTrustors() {
+  const response = await api.get('/api/recovery/trustors');
+  return response.data.details;
+}
+
+async function addTrustee(body) {
+  const response = await api.post('/api/recovery/shards', body);
+  return response.data.details;
+}
+
+async function acceptShard(shardId) {
+  const response = await api.put(`/api/recovery/shards/${shardId}/accept`);
+  return response.data.details;
+}
+
+async function revokeTrustee(shardId) {
+  const response = await api.delete(`/api/recovery/shards/${shardId}`);
+  return response.data.details;
+}
+
+async function initiateRecovery() {
+  const response = await api.post('/api/recovery/initiate');
+  return response.data.details;
+}
+
+async function getIncomingRequests() {
+  const response = await api.get('/api/recovery/requests');
+  return response.data.details;
+}
+
 async function getUserByEmail(email) {
   const response = await api.get('/api/users', { params: { email } });
   return response.data.details;
@@ -138,6 +174,13 @@ export {
   postEntries,
   putEntry,
   deleteEntry,
+  getMyTrustees,
+  getMyTrustors,
+  addTrustee,
+  acceptShard,
+  revokeTrustee,
+  initiateRecovery,
+  getIncomingRequests,
   getUserByEmail,
   getDeadDrops,
   postShardToDeadDrop,

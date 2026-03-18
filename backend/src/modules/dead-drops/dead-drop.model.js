@@ -4,6 +4,7 @@ const shardSchema = new mongoose.Schema(
   {
     senderId: { type: mongoose.Schema.ObjectId, ref: 'User', required: true },
     shardStr: { type: String, required: true },
+    recoveryRequested: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

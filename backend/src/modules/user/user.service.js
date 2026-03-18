@@ -4,7 +4,6 @@ import UserNotFoundError from '#src/errors/UserNotFoundError.js';
 import { Vault } from '#src/modules/vault/vault.model.js';
 import RefreshToken from '#src/modules/auth/auth.model.js';
 import { DeadDrop } from '#src/modules/dead-drops/dead-drop.model.js';
-import logger from '#src/utils/logger.js';
 
 function buildUserProfile(user) {
   return {
@@ -22,8 +21,6 @@ async function getUserProfile(userId) {
 }
 
 async function getUserPublicProfile(email) {
-  logger.debug(email);
-
   const user = await User.findOne({ email });
   if (!user) throw new UserNotFoundError('User not found.');
 

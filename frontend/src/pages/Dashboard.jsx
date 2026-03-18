@@ -12,6 +12,9 @@ import {
   Search,
   Loader2,
   RefreshCw,
+  Menu,
+  X,
+  User,
 } from 'lucide-react';
 import {
   getEntries,
@@ -34,6 +37,7 @@ import {
 import { useAuth } from '../context/AuthProvider.jsx';
 import EntriesTable from '../components/EntriesTable.jsx';
 import DeadDropInbox from '../components/DeadDropInbox.jsx';
+import RecoveryTab from '../components/RecoveryTab.jsx';
 
 const Dashboard = () => {
   const {
@@ -48,9 +52,12 @@ const Dashboard = () => {
   } = useAuth();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('passwords');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
   const [deadDropShards, setDeadDropShards] = useState([]);
   const [isLoadingDeadDrops, setIsLoadingDeadDrops] = useState(false);
   const [deadDropError, setDeadDropError] = useState('');
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showPasswords, setShowPasswords] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -367,7 +374,6 @@ const Dashboard = () => {
 
   // --- Accept / Reject shard handlers ---
   const handleAcceptShard = async (shard) => {
-    // shard.senderId is populated, so its an object { _id, firstName, ... }
     const senderId = shard.senderId?._id || shard.senderId;
     await acceptShardToVault(senderId, shard.shardStr);
     await removeDeadDropShard(shard._id);
@@ -379,299 +385,295 @@ const Dashboard = () => {
     setDeadDropShards((prev) => prev.filter((s) => s._id !== shard._id));
   };
 
-  return (
-    <div className="flex min-h-screen bg-gradient-to-b from-black via-black to-gray-950 text-white font-sans">
-      {/* Sidebar */}
-      <aside className="hidden lg:flex w-64 border-r border-gray-900/80 flex-col p-6">
-        <div className="text-2xl font-bold tracking-tighter mb-10 flex items-center gap-2">
-          <ShieldCheck className="w-8 h-8" /> VaultBox
-        </div>
+  const NavContent = () => (
+    <>
+      <div className="text-2xl font-bold tracking-tighter mb-10 flex items-center gap-2 px-4 lg:px-0">
+        <ShieldCheck className="w-8 h-8" /> VaultBox
+      </div>
 
-        <nav className="flex-1 space-y-1">
-          <button
-            type="button"
-            onClick={() => setActiveSection('passwords')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${
-              activeSection === 'passwords'
-                ? 'bg-white text-black'
-                : 'text-gray-400 hover:bg-gray-900'
-            }`}
-          >
-            <LayoutDashboard size={20} /> All Passwords
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSection('dead-drops')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${
-              activeSection === 'dead-drops'
-                ? 'bg-white text-black'
-                : 'text-gray-400 hover:bg-gray-900'
-            }`}
-          >
-            <Inbox size={20} /> Dead Drops
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSection('recovery')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${
-              activeSection === 'recovery'
-                ? 'bg-white text-black'
-                : 'text-gray-400 hover:bg-gray-900'
-            }`}
-          >
-            <KeyRound size={20} /> Recovery
-          </button>
-
-          <div className="!mt-4 pt-4 border-t border-gray-800">
+      <nav className="flex-1 space-y-1">
+        {[
+          { id: 'passwords', label: 'All Passwords', icon: LayoutDashboard },
+          { id: 'dead-drops', label: 'Dead Drops', icon: Inbox },
+          { id: 'recovery', label: 'Recovery Center', icon: KeyRound },
+          { id: 'settings', label: 'Settings', icon: Settings, isSeparator: true },
+        ].map((item) => (
+          <React.Fragment key={item.id}>
+            {item.isSeparator && <div className="!mt-4 pt-4 border-t border-gray-800" />}
             <button
-              type="button"
-              onClick={() => setActiveSection('settings')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                activeSection === 'settings'
-                  ? 'bg-white text-black font-medium'
-                  : 'text-gray-400 hover:bg-gray-900'
+              onClick={() => {
+                setActiveSection(item.id);
+                setIsMobileMenuOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
+                activeSection === item.id
+                  ? 'bg-white text-black shadow-lg scale-[1.02]'
+                  : 'text-gray-400 hover:bg-gray-900 hover:text-white'
               }`}
             >
-              <Settings size={20} /> Settings
+              <item.icon size={20} /> {item.label}
             </button>
-          </div>
-        </nav>
+          </React.Fragment>
+        ))}
+      </nav>
 
-        <button
-          className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-950/20 rounded-lg mt-auto transition-colors"
-          onClick={handleLogout}
-          type="button"
-        >
-          <LogOut size={20} /> Log Out
-        </button>
+      <button
+        className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-950/20 rounded-lg mt-auto transition-colors"
+        onClick={handleLogout}
+      >
+        <LogOut size={20} /> Log Out
+      </button>
+    </>
+  );
+
+  return (
+    <div className="flex min-h-screen bg-gradient-to-b from-black via-black to-gray-950 text-white font-sans overflow-x-hidden">
+      {/* Sidebar - Desktop */}
+      <aside className="hidden lg:flex w-64 border-r border-gray-900/80 flex-col p-6 fixed h-full bg-black/50 backdrop-blur-xl z-20">
+        <NavContent />
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 p-5 sm:p-8 lg:p-12 overflow-y-auto">
-        <div className="flex items-center justify-between lg:hidden mb-6">
-          <div className="text-xl font-bold tracking-tighter flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6" /> VaultBox
+      {/* Sidebar - Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-40 transition-opacity animate-in fade-in"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+      <aside className={`lg:hidden fixed inset-y-0 left-0 w-72 bg-gray-950 border-r border-gray-900 z-50 p-6 transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <button 
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="absolute top-6 right-6 p-2 text-gray-500 hover:text-white"
+        >
+          <X size={24} />
+        </button>
+        <NavContent />
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
+        {/* Top Header - Mobile */}
+        <header className="lg:hidden sticky top-0 z-30 bg-black/60 backdrop-blur-md border-b border-gray-900/80 p-4 flex items-center justify-between">
+           <div className="flex gap-4 items-center">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-2 text-gray-400 hover:text-white bg-gray-900 rounded-lg"
+            >
+              <Menu size={20} />
+            </button>
+            <div className="text-xl font-bold tracking-tighter flex items-center gap-2">
+              <ShieldCheck className="w-6 h-6" /> VaultBox
+            </div>
           </div>
-          <button
-            className="flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-950/20 rounded-lg transition-colors"
-            onClick={handleLogout}
-            type="button"
+          <button 
+             onClick={handleLogout}
+             className="text-gray-500"
           >
-            <LogOut size={18} /> Log Out
+             <LogOut size={20} />
           </button>
-        </div>
-        {/* Passwords Section */}
-        {activeSection === 'passwords' && (
-          <>
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 sm:mb-10">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold">My Vault</h1>
-                <p className="text-gray-400">
-                  Manage and secure your digital identity in one place.
-                </p>
-              </div>
+        </header>
 
-              <button
-                onClick={() => {
-                  setModalError('');
-                  setIsModalOpen(true);
-                }}
-                className="flex items-center justify-center gap-2 bg-white text-black px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg font-bold hover:bg-gray-200 transition-all active:scale-95"
-              >
-                <Plus size={20} /> New Entry
-              </button>
-            </header>
+        <main className="flex-1 p-5 sm:p-8 lg:p-12 max-w-7xl mx-auto w-full">
+          {/* Passwords Section */}
+          {activeSection === 'passwords' && (
+            <>
+              <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight">My Vault</h1>
+                  <p className="text-gray-400 mt-1">
+                    Manage and secure your digital credentials.
+                  </p>
+                </div>
 
-            <EntriesTable
-              entries={entries}
-              showPasswords={showPasswords}
-              onTogglePassword={togglePasswordVisibility}
-              onEditEntry={handleEditEntry}
-              onDeleteEntry={handleDeleteEntry}
-              isLoadingEntries={isLoadingEntries}
-              entriesError={entriesError}
-              hasDEK={!!DEK}
-              showingRange={showingRange}
-              entriesMeta={entriesMeta}
-              clampedPage={clampedPage}
-              totalPages={totalPages}
-              onPrevPage={() =>
-                setCurrentPage((prev) => Math.max(1, prev - 1))
-              }
-              onNextPage={() =>
-                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-              }
-            />
-          </>
-        )}
-
-         {/* Dead Drops Section */}
-        {activeSection === 'dead-drops' && (
-          <>
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 sm:mb-10">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold">Dead Drops</h1>
-                <p className="text-gray-400">
-                  Incoming recovery shards from other users. Accept to store in
-                  your vault.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={fetchDeadDrops}
-                  disabled={isLoadingDeadDrops}
-                  className="flex items-center justify-center p-2.5 sm:p-3 bg-gray-900 border border-gray-800 rounded-lg text-gray-400 hover:text-white hover:border-gray-700 transition-all active:scale-95 disabled:opacity-50"
-                  title="Refresh Dead Drops"
-                >
-                  <RefreshCw size={20} className={isLoadingDeadDrops ? 'animate-spin' : ''} />
-                </button>
                 <button
                   onClick={() => {
-                    setSendShardError('');
-                    setSendShardSuccess('');
-                    setIsSendShardOpen(true);
+                    setModalError('');
+                    setIsModalOpen(true);
                   }}
-                  className="flex items-center justify-center gap-2 bg-white text-black px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg font-bold hover:bg-gray-200 transition-all active:scale-95 text-sm sm:text-base"
+                  className="flex items-center justify-center gap-2 bg-white text-black px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all active:scale-95 shadow-lg shadow-white/5"
                 >
-                  <Send size={20} /> <span className="hidden sm:inline">Send Shard</span>
+                  <Plus size={20} /> <span className="sm:inline">New Entry</span>
                 </button>
+              </header>
+
+              <EntriesTable
+                entries={entries}
+                showPasswords={showPasswords}
+                onTogglePassword={togglePasswordVisibility}
+                onEditEntry={handleEditEntry}
+                onDeleteEntry={handleDeleteEntry}
+                isLoadingEntries={isLoadingEntries}
+                entriesError={entriesError}
+                hasDEK={!!DEK}
+                showingRange={showingRange}
+                entriesMeta={entriesMeta}
+                clampedPage={clampedPage}
+                totalPages={totalPages}
+                onPrevPage={() =>
+                  setCurrentPage((prev) => Math.max(1, prev - 1))
+                }
+                onNextPage={() =>
+                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                }
+              />
+            </>
+          )}
+
+          {/* Dead Drops Section */}
+          {activeSection === 'dead-drops' && (
+            <>
+              <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight">Dead Drops</h1>
+                  <p className="text-gray-400 mt-1">
+                    Manage incoming recovery shards from trusted peers.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={fetchDeadDrops}
+                    disabled={isLoadingDeadDrops}
+                    className="flex items-center justify-center p-3 bg-gray-900 border border-gray-800 rounded-xl text-gray-400 hover:text-white transition-all active:scale-95"
+                    title="Refresh"
+                  >
+                    <RefreshCw size={20} className={isLoadingDeadDrops ? 'animate-spin' : ''} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSendShardError('');
+                      setSendShardSuccess('');
+                      setIsSendShardOpen(true);
+                    }}
+                    className="flex items-center justify-center gap-2 bg-white text-black px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all active:scale-95 shadow-lg shadow-white/5"
+                  >
+                    <Send size={18} /> <span className="sm:inline">Send Shard</span>
+                  </button>
+                </div>
+              </header>
+
+              <DeadDropInbox
+                shards={deadDropShards}
+                isLoading={isLoadingDeadDrops}
+                error={deadDropError}
+                onAccept={handleAcceptShard}
+                onReject={handleRejectShard}
+              />
+            </>
+          )}
+
+          {/* Recovery Section */}
+          {activeSection === 'recovery' && (
+            <RecoveryTab user={user} />
+          )}
+
+          {/* Settings Section */}
+          {activeSection === 'settings' && (
+            <>
+              <header className="mb-10">
+                <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+                <p className="text-gray-400 mt-1">
+                  Manage your account and security preferences.
+                </p>
+              </header>
+
+              <div className="bg-gray-950 border border-gray-900 rounded-2xl p-12 flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 bg-gray-900 rounded-2xl flex items-center justify-center mb-6 text-gray-600">
+                  <Settings size={32} />
+                </div>
+                <h2 className="text-xl font-bold text-gray-200">Coming Soon</h2>
+                <p className="text-gray-500 mt-2 max-w-sm">
+                  Account settings and customization options will be available in a future version of VaultBox.
+                </p>
               </div>
-            </header>
+            </>
+          )}
+        </main>
+      </div>
 
-            <DeadDropInbox
-              shards={deadDropShards}
-              isLoading={isLoadingDeadDrops}
-              error={deadDropError}
-              onAccept={handleAcceptShard}
-              onReject={handleRejectShard}
-            />
-          </>
-        )}
-
-        {/* Recovery Section (Placeholder) */}
-        {activeSection === 'recovery' && (
-          <>
-            <header className="mb-8 sm:mb-10">
-              <h1 className="text-2xl sm:text-3xl font-bold">Recovery</h1>
-              <p className="text-gray-400">
-                Manage your vault recovery shards.
-              </p>
-            </header>
-
-            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-              <KeyRound className="w-12 h-12 mb-4 text-gray-600" />
-              <p className="text-lg font-medium text-gray-400">
-                Coming Soon
-              </p>
-              <p className="text-sm text-gray-600 mt-1">
-                Recovery features will be available in a future update.
-              </p>
-            </div>
-          </>
-        )}
-
-        {/* Settings Section (Placeholder) */}
-        {activeSection === 'settings' && (
-          <>
-            <header className="mb-8 sm:mb-10">
-              <h1 className="text-2xl sm:text-3xl font-bold">Settings</h1>
-              <p className="text-gray-400">
-                Manage your account preferences.
-              </p>
-            </header>
-
-            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-              <Settings className="w-12 h-12 mb-4 text-gray-600" />
-              <p className="text-lg font-medium text-gray-400">
-                Coming Soon
-              </p>
-              <p className="text-sm text-gray-600 mt-1">
-                Account settings will be available in a future update.
-              </p>
-            </div>
-          </>
-        )}
-      </main>
-
+      {/* Modals and Overlays */}
+      {/* (Keep modals mostly the same but ensure they are w-full max-w-md and p-4 on mobile) */}
+      
       {/* New Entry Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-950 border border-gray-800 w-full max-w-md p-8 rounded-2xl shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6">
-              {editingEntryId ? 'Edit Entry' : 'Create New Entry'}
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-60 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-gray-950 border border-gray-900 w-full max-w-lg p-6 sm:p-10 rounded-3xl shadow-2xl relative my-auto animate-in zoom-in-95 duration-200">
+            <button 
+               onClick={handleCloseModal}
+               className="absolute top-6 right-6 text-gray-500 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="text-2xl font-bold mb-8">
+              {editingEntryId ? 'Edit Vault Entry' : 'New Vault Entry'}
             </h2>
-            <div className="space-y-4">
+            <div className="space-y-5">
               {modalError && (
-                <div className="px-4 py-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
+                <div className="px-4 py-3 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 text-sm">
                   {modalError}
                 </div>
               )}
-              <div>
-                <label className="text-sm text-gray-400 block mb-2">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleFormChange}
-                  className="w-full bg-black border border-gray-800 rounded-lg p-3 focus:border-white outline-none"
-                  placeholder="e.g. Amazon"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="space-y-2 text-left">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Title</label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleFormChange}
+                    className="w-full bg-black border border-gray-800 rounded-xl px-4 py-3.5 focus:border-white outline-none transition-colors"
+                    placeholder="e.g. Amazon"
+                  />
+                </div>
+                <div className="space-y-2 text-left">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Site</label>
+                  <input
+                    type="text"
+                    name="site"
+                    value={formData.site}
+                    onChange={handleFormChange}
+                    className="w-full bg-black border border-gray-800 rounded-xl px-4 py-3.5 focus:border-white outline-none transition-colors"
+                    placeholder="amazon.com"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-sm text-gray-400 block mb-2">
-                  Identifier (email/username)
-                </label>
+              <div className="space-y-2 text-left">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Identifier</label>
                 <input
                   type="text"
                   name="identifier"
                   value={formData.identifier}
                   onChange={handleFormChange}
-                  className="w-full bg-black border border-gray-800 rounded-lg p-3 focus:border-white outline-none"
-                  placeholder="name@email.com"
+                  className="w-full bg-black border border-gray-800 rounded-xl px-4 py-3.5 focus:border-white outline-none transition-colors"
+                  placeholder="email or username"
                 />
               </div>
-              <div>
-                <label className="text-sm text-gray-400 block mb-2">Site</label>
-                <input
-                  type="text"
-                  name="site"
-                  value={formData.site}
-                  onChange={handleFormChange}
-                  className="w-full bg-black border border-gray-800 rounded-lg p-3 focus:border-white outline-none"
-                  placeholder="example.com"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-gray-400 block mb-2">
-                  Password
-                </label>
+              <div className="space-y-2 text-left">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Password</label>
                 <input
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleFormChange}
-                  className="w-full bg-black border border-gray-800 rounded-lg p-3 focus:border-white outline-none"
+                  className="w-full bg-black border border-gray-800 rounded-xl px-4 py-3.5 focus:border-white outline-none transition-colors"
                   placeholder="********"
                 />
               </div>
-              <div>
-                <label className="text-sm text-gray-400 block mb-2">Note</label>
+              <div className="space-y-2 text-left">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">Additional Note</label>
                 <textarea
                   name="note"
                   value={formData.note}
                   onChange={handleFormChange}
-                  className="w-full bg-black border border-gray-800 rounded-lg p-3 focus:border-white outline-none min-h-[96px]"
-                  placeholder="Optional note"
+                  className="w-full bg-black border border-gray-800 rounded-xl px-4 py-3.5 focus:border-white outline-none min-h-[100px] resize-none"
+                  placeholder="Optional details..."
                 />
               </div>
-              <div className="flex gap-4 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-6">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="flex-1 px-4 py-3 border border-gray-800 rounded-lg hover:bg-gray-900 transition-colors"
+                  className="flex-1 px-6 py-4 border border-gray-800 rounded-2xl hover:bg-gray-900 transition-colors font-bold text-gray-400"
                 >
                   Cancel
                 </button>
@@ -679,15 +681,9 @@ const Dashboard = () => {
                   type="button"
                   onClick={handleSaveEntry}
                   disabled={isSavingEntry || !DEK}
-                  className="flex-1 px-4 py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  className="flex-1 px-6 py-4 bg-white text-black font-black rounded-2xl hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
                 >
-                  {!DEK
-                    ? 'Vault Locked'
-                    : isSavingEntry
-                      ? 'Saving...'
-                      : editingEntryId
-                        ? 'Update Entry'
-                        : 'Save Entry'}
+                  {!DEK ? 'LOCKED' : isSavingEntry ? 'SAVING...' : editingEntryId ? 'UPDATE' : 'CREATE ENTRY'}
                 </button>
               </div>
             </div>
@@ -697,96 +693,87 @@ const Dashboard = () => {
 
       {/* Send Shard Modal */}
       {isSendShardOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-950 border border-gray-800 w-full max-w-md p-8 rounded-2xl shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6">Send Recovery Shard</h2>
-            <div className="space-y-4">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-60 flex items-center justify-center p-4">
+          <div className="bg-gray-950 border border-gray-900 w-full max-w-lg p-6 sm:p-10 rounded-3xl shadow-2xl relative animate-in slide-in-from-bottom-4 duration-300">
+            <button 
+               onClick={handleCloseSendShard}
+               className="absolute top-6 right-6 text-gray-500 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="text-2xl font-bold mb-2">Transfer Recovery Shard</h2>
+            <p className="text-gray-500 text-sm mb-8">Send a cryptographic piece of your key to a trusted user.</p>
+            
+            <div className="space-y-6">
               {sendShardError && (
-                <div className="px-4 py-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
+                <div className="px-4 py-3 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 text-sm">
                   {sendShardError}
                 </div>
               )}
               {sendShardSuccess && (
-                <div className="px-4 py-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-sm">
+                <div className="px-4 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-sm">
                   {sendShardSuccess}
                 </div>
               )}
 
-              {/* Email lookup */}
-              <div>
-                <label className="text-sm text-gray-400 block mb-2">
-                  Recipient Email
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    value={sendShardEmail}
-                    onChange={(e) => setSendShardEmail(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleLookupUser()}
-                    className="flex-1 bg-black border border-gray-800 rounded-lg p-3 focus:border-white outline-none"
-                    placeholder="user@example.com"
-                  />
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1 relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
+                      <Search size={16} />
+                    </div>
+                    <input
+                      type="email"
+                      value={sendShardEmail}
+                      onChange={(e) => setSendShardEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleLookupUser()}
+                      className="w-full bg-black border border-gray-800 rounded-xl pl-10 pr-4 py-3.5 focus:border-white outline-none transition-all group-hover:border-gray-700"
+                      placeholder="Enter recipient email..."
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={handleLookupUser}
                     disabled={isLookingUp}
-                    className="px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+                    className="px-6 py-3.5 bg-white text-black font-bold rounded-xl hover:bg-gray-100 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center min-w-[120px]"
                   >
-                    {isLookingUp ? (
-                      <Loader2 size={18} className="animate-spin" />
-                    ) : (
-                      <Search size={18} />
-                    )}
+                    {isLookingUp ? <Loader2 size={20} className="animate-spin" /> : 'Search'}
                   </button>
                 </div>
+
+                {sendShardRecipient && (
+                  <div className="border border-emerald-500/20 rounded-2xl p-5 bg-emerald-500/5 flex items-center gap-4 animate-in fade-in zoom-in-95">
+                    <div className="w-12 h-12 rounded-full bg-linear-to-br from-violet-600 to-blue-500 flex items-center justify-center shadow-lg border border-white/10">
+                      <User size={20} className="text-white" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-white leading-tight">
+                        {sendShardRecipient.firstName} {sendShardRecipient.lastName}
+                      </p>
+                      <p className="text-xs text-emerald-400 font-medium mt-1 uppercase tracking-widest flex items-center gap-1.5">
+                        <ShieldCheck size={12} /> Public Key Found
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Recipient preview */}
-              {sendShardRecipient && (
-                <div className="border border-gray-800 rounded-lg p-4 bg-gray-900/50">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
-                    Recipient Found
-                  </p>
-                  <div className="space-y-1.5">
-                    <p className="text-sm text-white font-medium">
-                      {sendShardRecipient.firstName}{' '}
-                      {sendShardRecipient.lastName}
-                    </p>
-                    <p className="text-xs text-gray-500 font-mono truncate">
-                      ID: {sendShardRecipient.id}
-                    </p>
-                    <p className="text-xs text-gray-500 font-mono truncate">
-                      Dead Drop: {sendShardRecipient.deadDropId}
-                    </p>
-                    <p className="text-xs text-emerald-400 mt-1">
-                      ✓ RSA public key available
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-4 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <button
                   type="button"
                   onClick={handleCloseSendShard}
-                  className="flex-1 px-4 py-3 border border-gray-800 rounded-lg hover:bg-gray-900 transition-colors"
+                  className="flex-1 px-6 py-4 border border-gray-800 rounded-2xl hover:bg-gray-900 transition-colors font-bold text-gray-400"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleSendShard}
-                  disabled={
-                    isSendingShard || !sendShardRecipient || !RKEK || !user
-                  }
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  disabled={isSendingShard || !sendShardRecipient}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-white text-black font-black rounded-2xl hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
                 >
-                  {isSendingShard ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Send size={16} />
-                  )}
-                  {isSendingShard ? 'Sending...' : 'Send Shard'}
+                  {isSendingShard ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                  {isSendingShard ? 'TRANSFERRING...' : 'TRANSFER SHARD'}
                 </button>
               </div>
             </div>
