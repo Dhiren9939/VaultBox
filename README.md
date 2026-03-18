@@ -1,35 +1,30 @@
 # VaultBox
 
-VaultBox is a zero-knowledge password vault with a social recovery system.
+[![Status](https://img.shields.io/badge/status-active-success)](https://github.com)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/react-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Express](https://img.shields.io/badge/express-5-000000?logo=express&logoColor=white)](https://expressjs.com/)
+[![MongoDB](https://img.shields.io/badge/mongodb-database-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Security](https://img.shields.io/badge/security-client--side%20encryption-blue)](https://github.com)
+[![License](https://img.shields.io/badge/license-unlicensed-lightgrey)](https://github.com)
 
-Your secrets are encrypted in the browser before they ever touch the backend. If you lose your master password, VaultBox can recover access through trusted people and cryptographic shard reconstruction.
+VaultBox is a secure full-stack password manager built with React, Express, and MongoDB.
 
-## Why This Exists
-
-Most password managers force a brutal tradeoff:
-- Recoverable account = provider can usually see too much.
-- True privacy = forget password, lose everything.
-
-VaultBox aims for both:
-- End-to-end client-side encryption for vault data.
-- Recovery path using trustee-held encrypted shards.
-- No plaintext password entries stored server-side.
+`react` `vite` `express` `mongodb` `tailwindcss` `argon2id` `jwt` `axios`
 
 ## Core Features
 
-- Client-side vault encryption with `AES-GCM`.
-- `Argon2id` key derivation in browser (`hash-wasm`).
-- Dual-wrapped vault key material (`KEK` + `RKEK` paths).
-- JWT auth with refresh-token rotation and secure cookies.
-- Dead-drop inbox for shard exchange.
-- Trustee/recovery center in dashboard.
-- Full recovery flow with temporary session keys + shard contributions.
+- Encrypted vault entries
+- Authentication with access + refresh token flow
+- Modern React dashboard UI
+- MongoDB persistence with modular backend architecture
 
 ## Tech Stack
 
 - Frontend: React 19, Vite, Tailwind CSS 4, Axios
 - Backend: Node.js, Express 5, MongoDB, Mongoose
-- Security/Crypto: Web Crypto API, Argon2id, RSA-OAEP, bcrypt
+- Security/Crypto: Web Crypto API, Argon2id, bcrypt
 
 ## Project Structure
 
@@ -75,7 +70,7 @@ Default local URLs:
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:3000`
 
-Note: both frontend API base URL and backend CORS origin are currently hardcoded for local development (`localhost:3000` and `localhost:5173`).
+Note: frontend API base URL and backend CORS origin are currently set for local development.
 
 ## NPM Scripts
 
@@ -92,85 +87,11 @@ Note: both frontend API base URL and backend CORS origin are currently hardcoded
 - `npm run preview` - preview production build
 - `npm run lint` - lint frontend source
 
-## Security Model (High-Level)
-
-- User password derives two keys with `Argon2id`:
-  - `KEK` for normal vault unlock path.
-  - `RKEK` for recovery path.
-- Random `DEK` encrypts vault entries.
-- Backend stores encrypted key material only:
-  - `eDEK` (DEK encrypted by KEK)
-  - `reDEK` (DEK encrypted by RKEK)
-- Vault entries are encrypted/decrypted client-side.
-- Recovery shards are encrypted for recipients using RSA public keys.
-- Recovery session uses ephemeral RSA keypair and intermediate password.
-
-## Recovery Flow Snapshot
-
-1. User starts recovery with email + intermediate password.
-2. Client generates ephemeral RSA keypair and sends encrypted private key metadata.
-3. Trustees contribute encrypted shards to active recovery session.
-4. Client pulls >= 3 shards, decrypts and reconstructs `RKEK` using interpolation.
-5. Client decrypts DEK, rotates vault keys + credentials, and finalizes recovery.
-6. Old shard distribution is purged after successful finalization.
-
-Recovery sessions expire automatically after 3 days (Mongo TTL index on `expiresAt`).
-
-## API Surface (By Module)
-
-### Auth
-
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/refresh`
-- `POST /api/auth/logout`
-
-### Vault
-
-- `GET /api/vaults/key`
-- `GET /api/vaults/entries`
-- `POST /api/vaults/entries`
-- `PUT /api/vaults/entries/:entryId`
-- `DELETE /api/vaults/entries/:entryId`
-- `POST /api/vaults/shard`
-
-### Recovery
-
-- `GET /api/recovery/trustees`
-- `GET /api/recovery/trustors`
-- `GET /api/recovery/requests`
-- `DELETE /api/recovery/shards/:shardId`
-- `POST /api/recovery/initiate`
-- `POST /api/recovery/start`
-- `GET /api/recovery/shards/:recoveryId`
-- `POST /api/recovery/approve/:recoveryId`
-- `POST /api/recovery/complete`
-- `POST /api/recovery/cancel`
-
-### Dead Drops
-
-- `GET /api/dead-drops`
-- `POST /api/dead-drops/:id`
-- `DELETE /api/dead-drops/shards/:shardId`
-
-### User
-
-- `GET /api/users`
-- `PUT /api/users`
-- `DELETE /api/users`
-
 ## Current State
 
 - No automated tests are wired yet.
 - Linting is available in frontend and backend.
 - Project is optimized for local/dev workflow right now.
-
-## Hardening Ideas
-
-- Move frontend API base URL and backend CORS origin to environment config.
-- Add end-to-end tests for registration, vault CRUD, and recovery completion.
-- Add rate limiting and abuse controls on auth and recovery endpoints.
-- Add security headers and stricter cookie policies for production deploy.
 
 ## Contributing
 
