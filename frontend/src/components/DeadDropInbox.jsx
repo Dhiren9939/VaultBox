@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import {
   Inbox,
   User,
@@ -87,14 +88,17 @@ const DeadDropInbox = ({ shards, isLoading, error, onAccept, onReject }) => {
               className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-900/40 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-blue-500 flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-linear-to-br from-violet-600 to-blue-500 flex items-center justify-center shrink-0">
                   <User size={16} className="text-white" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-white truncate">
-                    From: {shard.senderId}
+                    {shard.senderId?.firstName} {shard.senderId?.lastName}
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-500 truncate">
+                    {shard.senderId?.email}
+                  </p>
+                  <p className="text-[10px] text-gray-600 mt-0.5">
                     {new Date(shard.createdAt).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
@@ -105,7 +109,7 @@ const DeadDropInbox = ({ shards, isLoading, error, onAccept, onReject }) => {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
                   Pending
                 </span>
@@ -119,18 +123,7 @@ const DeadDropInbox = ({ shards, isLoading, error, onAccept, onReject }) => {
 
             {/* Expanded section */}
             {isExpanded && (
-              <div className="px-5 pb-4 pt-1 border-t border-gray-800/60">
-                <div className="mb-4">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
-                    Encrypted Shard Data
-                  </p>
-                  <div className="bg-black/50 border border-gray-800 rounded-lg p-3 max-h-24 overflow-auto">
-                    <code className="text-xs text-gray-400 break-all font-mono leading-relaxed">
-                      {shard.shardStr}
-                    </code>
-                  </div>
-                </div>
-
+              <div className="px-5 pb-4 pt-4 border-t border-gray-800/60">
                 <div className="flex gap-3">
                   <button
                     type="button"
@@ -166,6 +159,25 @@ const DeadDropInbox = ({ shards, isLoading, error, onAccept, onReject }) => {
       })}
     </div>
   );
+};
+
+DeadDropInbox.propTypes = {
+  shards: PropTypes.arrayOf(
+    PropTypes.shape({
+      _id: PropTypes.string.isRequired,
+      senderId: PropTypes.shape({
+        firstName: PropTypes.string,
+        lastName: PropTypes.string,
+        email: PropTypes.string,
+      }),
+      shardStr: PropTypes.string,
+      createdAt: PropTypes.string,
+    })
+  ).isRequired,
+  isLoading: PropTypes.bool,
+  error: PropTypes.string,
+  onAccept: PropTypes.func.isRequired,
+  onReject: PropTypes.func.isRequired,
 };
 
 export default DeadDropInbox;

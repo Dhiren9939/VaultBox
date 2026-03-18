@@ -2,6 +2,7 @@ import { ErrorResponse, SuccessResponse } from '#src/utils/response.js';
 import {
   getDeadDropByUserId,
   addShardToDeadDrop,
+  removeShardFromDeadDrop,
 } from './dead-drop.service.js';
 
 export async function handleGetDeadDrop(req, res) {
@@ -23,6 +24,17 @@ export async function handleAddShardToDeadDrop(req, res) {
     const shard = await addShardToDeadDrop(deadDropId, senderId, shardStr);
     return SuccessResponse(res, { shard }, 'Shard added successfully', 201);
   } catch (error) {
-    return ErrorResponse(res, {}, error.message, 400); // Or 404 for not found
+    return ErrorResponse(res, {}, error.message, 400);
+  }
+}
+
+export async function handleRemoveShardFromDeadDrop(req, res) {
+  try {
+    const userId = req.user.id;
+    const { shardId } = req.params;
+    await removeShardFromDeadDrop(userId, shardId);
+    return SuccessResponse(res, {}, 'Shard removed successfully', 200);
+  } catch (error) {
+    return ErrorResponse(res, {}, error.message, 400);
   }
 }

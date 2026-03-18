@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -8,6 +8,10 @@ import {
   ShieldCheck,
   Inbox,
   KeyRound,
+  Send,
+  Search,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import {
   getEntries,
@@ -15,14 +19,33 @@ import {
   putEntry,
   deleteEntry,
   logoutUser,
+  getUserByEmail,
+  getDeadDrops,
+  postShardToDeadDrop,
+  removeDeadDropShard,
+  acceptShardToVault,
 } from '../service/api';
-import { decryptEntry, encryptEntry } from '../service/cryptoService';
+import {
+  decryptEntry,
+  encryptEntry,
+  generateShard,
+  encryptShardWithRSA,
+} from '../service/cryptoService';
 import { useAuth } from '../context/AuthProvider.jsx';
 import EntriesTable from '../components/EntriesTable.jsx';
 import DeadDropInbox from '../components/DeadDropInbox.jsx';
 
 const Dashboard = () => {
-  const { DEK, setAccessToken, setUser, setKEK, setDEK } = useAuth();
+  const {
+    DEK,
+    RKEK,
+    user,
+    setAccessToken,
+    setUser,
+    setKEK,
+    setRKEK,
+    setDEK,
+  } = useAuth();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('passwords');
   const [deadDropShards, setDeadDropShards] = useState([]);
@@ -52,6 +75,37 @@ const Dashboard = () => {
     note: '',
     site: '',
   });
+
+  // --- Send Shard Modal state ---
+  const [isSendShardOpen, setIsSendShardOpen] = useState(false);
+  const [sendShardEmail, setSendShardEmail] = useState('');
+  const [sendShardRecipient, setSendShardRecipient] = useState(null);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [sendShardError, setSendShardError] = useState('');
+  const [isSendingShard, setIsSendingShard] = useState(false);
+  const [sendShardSuccess, setSendShardSuccess] = useState('');
+
+  // --- Dead Drop fetch ---
+  const fetchDeadDrops = useCallback(async () => {
+    setIsLoadingDeadDrops(true);
+    setDeadDropError('');
+    try {
+      const data = await getDeadDrops();
+      setDeadDropShards(data.shards || []);
+    } catch (err) {
+      setDeadDropError(
+        err?.response?.data?.message || 'Failed to load dead drops.'
+      );
+    } finally {
+      setIsLoadingDeadDrops(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeSection === 'dead-drops') {
+      fetchDeadDrops();
+    }
+  }, [activeSection, fetchDeadDrops]);
 
   const togglePasswordVisibility = (id) => {
     setShowPasswords((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -231,9 +285,98 @@ const Dashboard = () => {
       setAccessToken('');
       setUser(null);
       setKEK(null);
+      setRKEK(null);
       setDEK(null);
       navigate('/login');
     }
+  };
+
+  // --- Send Shard handlers ---
+  const handleLookupUser = async () => {
+    if (!sendShardEmail.trim()) {
+      setSendShardError('Please enter an email.');
+      return;
+    }
+    if (sendShardEmail.trim().toLowerCase() === user?.email?.toLowerCase()) {
+      setSendShardError('You cannot send a recovery shard to yourself.');
+      return;
+    }
+    setIsLookingUp(true);
+    setSendShardError('');
+    setSendShardRecipient(null);
+    setSendShardSuccess('');
+    try {
+      const data = await getUserByEmail(sendShardEmail.trim());
+      if (!data?.user) {
+        setSendShardError('User not found.');
+        return;
+      }
+      setSendShardRecipient(data.user);
+    } catch (err) {
+      setSendShardError(
+        err?.response?.data?.message || 'User not found.'
+      );
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
+  const handleSendShard = async () => {
+    if (!sendShardRecipient || !RKEK || !user) return;
+    setIsSendingShard(true);
+    setSendShardError('');
+    setSendShardSuccess('');
+    try {
+      // 1. Generate the shard using Shamir's secret sharing
+      const { shard } = generateShard(
+        RKEK,
+        sendShardRecipient.id,
+        user.fAttributes || { a1: '', a2: '' }
+      );
+
+      // 2. Encrypt the shard with the recipient's RSA public key
+      const encryptedShard = await encryptShardWithRSA(
+        sendShardRecipient.publicKey,
+        shard
+      );
+
+      // 3. Post to recipient's dead drop
+      await postShardToDeadDrop(sendShardRecipient.deadDropId, encryptedShard);
+
+      setSendShardSuccess(
+        `Shard sent to ${sendShardRecipient.firstName} successfully!`
+      );
+      setSendShardRecipient(null);
+      setSendShardEmail('');
+    } catch (err) {
+      setSendShardError(
+        err?.response?.data?.message || 'Failed to send shard.'
+      );
+    } finally {
+      setIsSendingShard(false);
+    }
+  };
+
+  const handleCloseSendShard = () => {
+    setIsSendShardOpen(false);
+    setSendShardEmail('');
+    setSendShardRecipient(null);
+    setSendShardError('');
+    setSendShardSuccess('');
+  };
+
+  // --- Accept / Reject shard handlers ---
+  const handleAcceptShard = async (shard) => {
+    // shard.senderId is populated, so its an object { _id, firstName, ... }
+    const senderId = shard.senderId?._id || shard.senderId;
+    await acceptShardToVault(senderId, shard.shardStr);
+    await removeDeadDropShard(shard._id);
+    setDeadDropShards((prev) => prev.filter((s) => s._id !== shard._id));
+  };
+
+  const handleRejectShard = async (shard) => {
+    await removeDeadDropShard(shard._id);
+    setDeadDropShards((prev) => prev.filter((s) => s._id !== shard._id));
   };
 
   return (
@@ -362,7 +505,7 @@ const Dashboard = () => {
           </>
         )}
 
-        {/* Dead Drops Section */}
+         {/* Dead Drops Section */}
         {activeSection === 'dead-drops' && (
           <>
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 sm:mb-10">
@@ -373,20 +516,35 @@ const Dashboard = () => {
                   your vault.
                 </p>
               </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={fetchDeadDrops}
+                  disabled={isLoadingDeadDrops}
+                  className="flex items-center justify-center p-2.5 sm:p-3 bg-gray-900 border border-gray-800 rounded-lg text-gray-400 hover:text-white hover:border-gray-700 transition-all active:scale-95 disabled:opacity-50"
+                  title="Refresh Dead Drops"
+                >
+                  <RefreshCw size={20} className={isLoadingDeadDrops ? 'animate-spin' : ''} />
+                </button>
+                <button
+                  onClick={() => {
+                    setSendShardError('');
+                    setSendShardSuccess('');
+                    setIsSendShardOpen(true);
+                  }}
+                  className="flex items-center justify-center gap-2 bg-white text-black px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg font-bold hover:bg-gray-200 transition-all active:scale-95 text-sm sm:text-base"
+                >
+                  <Send size={20} /> <span className="hidden sm:inline">Send Shard</span>
+                </button>
+              </div>
             </header>
 
             <DeadDropInbox
               shards={deadDropShards}
               isLoading={isLoadingDeadDrops}
               error={deadDropError}
-              onAccept={async (shard) => {
-                // Will be wired to backend later
-                console.log('Accept shard:', shard);
-              }}
-              onReject={async (shard) => {
-                // Will be wired to backend later
-                console.log('Reject shard:', shard);
-              }}
+              onAccept={handleAcceptShard}
+              onReject={handleRejectShard}
             />
           </>
         )}
@@ -530,6 +688,105 @@ const Dashboard = () => {
                       : editingEntryId
                         ? 'Update Entry'
                         : 'Save Entry'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Shard Modal */}
+      {isSendShardOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-950 border border-gray-800 w-full max-w-md p-8 rounded-2xl shadow-2xl">
+            <h2 className="text-2xl font-bold mb-6">Send Recovery Shard</h2>
+            <div className="space-y-4">
+              {sendShardError && (
+                <div className="px-4 py-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
+                  {sendShardError}
+                </div>
+              )}
+              {sendShardSuccess && (
+                <div className="px-4 py-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-sm">
+                  {sendShardSuccess}
+                </div>
+              )}
+
+              {/* Email lookup */}
+              <div>
+                <label className="text-sm text-gray-400 block mb-2">
+                  Recipient Email
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={sendShardEmail}
+                    onChange={(e) => setSendShardEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleLookupUser()}
+                    className="flex-1 bg-black border border-gray-800 rounded-lg p-3 focus:border-white outline-none"
+                    placeholder="user@example.com"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleLookupUser}
+                    disabled={isLookingUp}
+                    className="px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {isLookingUp ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Search size={18} />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Recipient preview */}
+              {sendShardRecipient && (
+                <div className="border border-gray-800 rounded-lg p-4 bg-gray-900/50">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
+                    Recipient Found
+                  </p>
+                  <div className="space-y-1.5">
+                    <p className="text-sm text-white font-medium">
+                      {sendShardRecipient.firstName}{' '}
+                      {sendShardRecipient.lastName}
+                    </p>
+                    <p className="text-xs text-gray-500 font-mono truncate">
+                      ID: {sendShardRecipient.id}
+                    </p>
+                    <p className="text-xs text-gray-500 font-mono truncate">
+                      Dead Drop: {sendShardRecipient.deadDropId}
+                    </p>
+                    <p className="text-xs text-emerald-400 mt-1">
+                      ✓ RSA public key available
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={handleCloseSendShard}
+                  className="flex-1 px-4 py-3 border border-gray-800 rounded-lg hover:bg-gray-900 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendShard}
+                  disabled={
+                    isSendingShard || !sendShardRecipient || !RKEK || !user
+                  }
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                >
+                  {isSendingShard ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Send size={16} />
+                  )}
+                  {isSendingShard ? 'Sending...' : 'Send Shard'}
                 </button>
               </div>
             </div>

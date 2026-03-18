@@ -5,6 +5,7 @@ import asyncHandler from '#src/utils/asyncHandler.js';
 import {
   handleGetDeadDrop,
   handleAddShardToDeadDrop,
+  handleRemoveShardFromDeadDrop,
 } from './dead-drop.controller.js';
 import { addShardValidation } from './dead-drop.validation.js';
 
@@ -22,6 +23,12 @@ router.post(
   addShardValidation,
   handleValidationErrors('Invalid Shard Payload'),
   asyncHandler(handleAddShardToDeadDrop)
+);
+
+router.delete(
+  '/api/dead-drops/shards/:shardId',
+  authenticateUser,
+  asyncHandler(handleRemoveShardFromDeadDrop)
 );
 
 export default router;

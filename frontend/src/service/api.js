@@ -102,6 +102,33 @@ async function deleteEntry(entryId) {
   return response.data.details;
 }
 
+async function getUserByEmail(email) {
+  const response = await api.get('/api/users', { params: { email } });
+  return response.data.details;
+}
+
+async function getDeadDrops() {
+  const response = await api.get('/api/dead-drops');
+  return response.data.details;
+}
+
+async function postShardToDeadDrop(deadDropId, shardStr) {
+  const response = await api.post(`/api/dead-drops/${deadDropId}`, {
+    shardStr,
+  });
+  return response.data.details;
+}
+
+async function removeDeadDropShard(shardId) {
+  const response = await api.delete(`/api/dead-drops/shards/${shardId}`);
+  return response.data.details;
+}
+
+async function acceptShardToVault(senderId, shardStr) {
+  const response = await api.post('/api/vaults/shard', { senderId, shardStr });
+  return response.data.details;
+}
+
 export {
   registerUser,
   loginUser,
@@ -111,6 +138,11 @@ export {
   postEntries,
   putEntry,
   deleteEntry,
+  getUserByEmail,
+  getDeadDrops,
+  postShardToDeadDrop,
+  removeDeadDropShard,
+  acceptShardToVault,
   setAccessTokenProvider,
   setAccessTokenUpdater,
 };

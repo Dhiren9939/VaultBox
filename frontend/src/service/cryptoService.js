@@ -199,6 +199,8 @@ async function createVaultKey(password) {
     kIv: bufferToBase64(kIv),
     rIv: bufferToBase64(rIv),
     bufferKEK,
+    bufferRKEK,
+    bufferDEK,
   };
 }
 
@@ -268,18 +270,84 @@ async function generateRSAKeyPair(KEK) {
   };
 }
 
+/**
+ *
+ * @param {Uint8Array} RKEK
+ * @param {string} receiverId
+ * @param {Object} fAttributes
+ */
+function generateShard(RKEK, receiverId, fAttributes) {
+  const x = BigInt('0x' + receiverId);
+  const bigIntA2 = bufferToBigInt(base64ToBuffer(fAttributes.a2));
+  const bigIntA1 = bufferToBigInt(base64ToBuffer(fAttributes.a1));
 
+  // split 32 byte RKEK into 11, 11, 10 byte blocks
+  // and convert them to BigInt
+  const blocks = [
+    bufferToBigInt(RKEK.subarray(0, 11)),
+    bufferToBigInt(RKEK.subarray(11, 22)),
+    bufferToBigInt(RKEK.subarray(22, 32)),
+  ];
+
+  // this will create the 3 different f(x) and return back the 3 y values for each
+  // RKEK block
+  const points = blocks.map((yIntercept) => {
+    const x2 = (x * x) % P;
+
+    const term1 = (x2 * bigIntA2) % P;
+    const term2 = (x * bigIntA1) % P;
+
+    return (term2 + term1 + yIntercept) % P;
+  });
+
+  // values to base64
+  const pointsBase64 = points.map((shardBlock) =>
+    bufferToBase64(bigIntToBuffer(shardBlock))
+  );
+
+  return {
+    receiverId,
+    shard: pointsBase64.join(':'),
+  };
+}
+
+/**
+ * Encrypts a shard string using the recipient's RSA public key.
+ * @param {string} publicKeyBase64 - Base64-encoded SPKI public key
+ * @param {string} shardString - The shard string to encrypt
+ * @returns {Promise<string>} Base64-encoded RSA ciphertext
+ */
+async function encryptShardWithRSA(publicKeyBase64, shardString) {
+  const publicKeyBuffer = base64ToBuffer(publicKeyBase64);
+  const publicKey = await window.crypto.subtle.importKey(
+    'spki',
+    publicKeyBuffer,
+    { name: 'RSA-OAEP', hash: 'SHA-256' },
+    false,
+    ['encrypt']
+  );
+
+  const shardBuffer = stringToBuffer(shardString);
+  const encryptedBuffer = await window.crypto.subtle.encrypt(
+    { name: 'RSA-OAEP' },
+    publicKey,
+    shardBuffer
+  );
+
+  return bufferToBase64(encryptedBuffer);
+}
 
 export {
   createVaultKey,
   encryptDEK,
   generateKEK,
   base64ToBuffer,
+  bufferToBase64,
   decryptDEK,
   encryptEntry,
   decryptEntry,
   generateFAttributes,
   generateRSAKeyPair,
+  generateShard,
+  encryptShardWithRSA,
 };
-
-

@@ -18,7 +18,8 @@ export const validateRegisterBody = [
     .withMessage('Email is required.')
     .isEmail()
     .withMessage('Invalid email format.')
-    .normalizeEmail(),
+    .trim()
+    .toLowerCase(),
   body('password')
     .trim()
     .notEmpty()
@@ -119,6 +120,7 @@ export const validateLoginBody = [
     .withMessage('Email is required.')
     .isEmail()
     .withMessage('Invalid email format.')
-    .normalizeEmail(),
+    .trim()
+    .toLowerCase(),
   body('password').trim().notEmpty().withMessage('Password is required.'),
 ];

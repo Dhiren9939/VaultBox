@@ -19,6 +19,7 @@ function buildUserPayload(user, vaultId) {
     firstName: user.firstName,
     lastName: user.lastName,
     vaultId,
+    fAttributes: user.fAttributes || null,
   };
 }
 
@@ -58,7 +59,8 @@ async function saveRefreshToken(userId, refreshToken) {
 
   await RefreshToken.findOneAndUpdate(
     { userId },
-    { tokenHash, createdAt, expiresAt }
+    { tokenHash, createdAt, expiresAt },
+    { upsert: true }
   );
 }
 

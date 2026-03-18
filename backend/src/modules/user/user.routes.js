@@ -7,14 +7,25 @@ import {
 import { authenticateUser } from '#src/modules/auth/auth.middleware.js';
 import handleValidationErrors from '#src/middleware/handleValidationErrors.js';
 import asyncHandler from '#src/utils/asyncHandler.js';
+import {
+  validateUserQuery,
+  validateUserUpdate,
+} from '#src/modules/user/user.validation.js';
 
 const router = express.Router();
 
-router.get('/api/users', authenticateUser, asyncHandler(handleGetUser));
+router.get(
+  '/api/users',
+  authenticateUser,
+  validateUserQuery,
+  handleValidationErrors('Invalid User Search Request'),
+  asyncHandler(handleGetUser)
+);
 
 router.put(
   '/api/users',
   authenticateUser,
+  validateUserUpdate,
   handleValidationErrors('Invalid User Update Request'),
   asyncHandler(handleUpdateUser)
 );

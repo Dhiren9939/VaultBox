@@ -252,7 +252,17 @@ const SignUpPage = () => {
         return;
       }
 
-      const { eDEK, reDEK, kSalt, rSalt, kIv, rIv, bufferKEK } = await vaultKeyPromise;
+      const {
+        eDEK,
+        reDEK,
+        kSalt,
+        rSalt,
+        kIv,
+        rIv,
+        bufferKEK,
+        bufferRKEK,
+        bufferDEK,
+      } = await vaultKeyPromise;
       const fAttributes = generateFAttributes();
       const { publicKey, encryptedPrivateKey, rsaIv } = await generateRSAKeyPair(
         bufferKEK
@@ -275,23 +285,9 @@ const SignUpPage = () => {
       });
       setAccessToken(accessToken);
       setUser(user);
-      const vaultKey = await getVaultKey();
-      const kek = await generateKEK(
-        formData.password,
-        base64ToBuffer(vaultKey.kSalt)
-      );
-      const rkek = await generateKEK(
-        formData.password,
-        base64ToBuffer(vaultKey.rSalt)
-      );
-      const dek = await decryptDEK(
-        kek,
-        base64ToBuffer(vaultKey.eDEK),
-        base64ToBuffer(vaultKey.kIv)
-      );
-      setKEK(kek);
-      setRKEK(rkek);
-      setDEK(dek);
+      setKEK(bufferKEK);
+      setRKEK(bufferRKEK);
+      setDEK(bufferDEK);
       navigate('/dashboard');
     } catch (error) {
       console.log(error);
