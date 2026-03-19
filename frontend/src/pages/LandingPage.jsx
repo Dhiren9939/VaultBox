@@ -151,10 +151,6 @@ const LandingPage = () => {
               </div>
             ))}
           </div>
-          <div className="mt-6 rounded-2xl border border-gray-800 bg-black p-4 text-sm text-gray-400">
-            Recovery becomes available only after your accepted-trustee count
-            reaches 3. This matches the live Recovery Center threshold.
-          </div>
         </div>
       </header>
 
