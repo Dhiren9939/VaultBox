@@ -1,4 +1,3 @@
-// API server entrypoint.
 import env from '#src/config/env.js';
 import mongo from '#src/config/mongo.js';
 import express from 'express';
@@ -38,4 +37,4 @@ app.use(centralErrorHandler);
 //   logger.info(`Server is running on port ${PORT}`);
 // });
 
-export { app };
+export default app;
