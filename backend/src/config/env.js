@@ -12,6 +12,7 @@ const env = cleanEnv(process.env, {
   COOKIE_SECRET: str(),
   JWT_EXPIRES_IN_SEC: num(),
   REFRESH_TOKEN_EXPIRES_IN_SEC: num(),
+  FRONTEND_URL: url(),
 });
 
 export default env;
