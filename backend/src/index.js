@@ -34,8 +34,8 @@ app.use(recoveryRoutes);
 app.use(notFound);
 app.use(centralErrorHandler);
 
-app.listen(PORT, () => {
-  logger.info(`Server is running on port ${PORT}`);
-});
+// app.listen(PORT, () => {
+//   logger.info(`Server is running on port ${PORT}`);
+// });
 
 export { app };
