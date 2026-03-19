@@ -7,7 +7,7 @@ const env = cleanEnv(process.env, {
     choices: ['development', 'production', 'test'],
   }),
   JWT_SECRET: str(),
-  PORT: port(),
+  PORT: port({ default: 3000 }),
   MONGODB_URI: url(),
   COOKIE_SECRET: str(),
   JWT_EXPIRES_IN_SEC: num(),

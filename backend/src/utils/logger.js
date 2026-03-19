@@ -2,6 +2,7 @@ import winston from 'winston';
 import process from 'process';
 
 const isProd = process.env.NODE_ENV === 'production';
+const isVercel = process.env.VERCEL === '1';
 
 const logger = winston.createLogger({
   level: isProd ? 'info' : 'debug',
@@ -13,7 +14,7 @@ const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.Console(),
-    ...(isProd
+    ...(isProd && !isVercel
       ? [
           new winston.transports.File({
             filename: 'logs/error.log',
