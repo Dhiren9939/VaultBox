@@ -7,7 +7,7 @@ const baseCookieOptions = {
   signed: true,
   httpOnly: true,
   secure: env.NODE_ENV === 'production',
-  sameSite: env.NODE_ENV === 'lax',
+  sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
 };
 
 /**

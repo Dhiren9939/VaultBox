@@ -13,6 +13,7 @@ import centralErrorHandler from '#src/middleware/centralErrorHandler.js';
 import logger from '#src/utils/logger.js';
 
 const PORT = env.PORT;
+void mongo;
 
 const app = express();
 app.use(
@@ -33,8 +34,10 @@ app.use(recoveryRoutes);
 app.use(notFound);
 app.use(centralErrorHandler);
 
-// app.listen(PORT, () => {
-//   logger.info(`Server is running on port ${PORT}`);
-// });
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    logger.info(`Server is running on port ${PORT}`);
+  });
+}
 
 export default app;
